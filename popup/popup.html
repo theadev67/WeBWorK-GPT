@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <div class="popup-container">
+            <div class="header">
+                <span class="logo">🤖 WeBWorK GPT</span>
+            </div>
+            <div class="status-row">
+                <span>Extension Status</span>
+                <label class="switch">
+                    <input type="checkbox" id="enabled-toggle" />
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <button id="open-settings" class="btn-secondary">
+                ⚙️ Settings & Disclaimer
+            </button>
+        </div>
+        <script type="module" src="popup.js"></script>
+    </body>
+</html>

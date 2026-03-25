@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>WeBWorK GPT - Settings & Disclaimer</title>
+        <link rel="stylesheet" href="disclaimer.css" />
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>🤖 WebWork GPT</h1>
+                <p>Independent AI Assistant for WeBWorK</p>
+            </header>
+
+            <section class="disclaimer-box">
+                <h2>⚠️ Important Disclaimer</h2>
+                <p>
+                    WebWork GPT is an independent project and is
+                    <strong
+                        >not affiliated with, endorsed by, or associated with
+                        the University of British Columbia (UBC) or the WeBWorK
+                        project</strong
+                    >.
+                </p>
+                <p>
+                    This tool is intended solely for
+                    <strong>self-study and revision purposes</strong>. It is NOT
+                    designed to complete assignments for you.
+                </p>
+                <p>
+                    Users bear full responsibility for its use and must adhere
+                    to their institution's academic integrity policies. Misuse
+                    of this tool may have serious academic consequences.
+                </p>
+                <div class="acceptance">
+                    <label>
+                        <input type="checkbox" id="accept-checkbox" /> I have
+                        read, understood, and accept the disclaimer above.
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-box">
+                <h2>⚙️ AI Configuration</h2>
+                <div class="form-group">
+                    <label for="provider-select">LLM Provider</label>
+                    <select id="provider-select">
+                        <option value="openai">OpenAI</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="claude">Anthropic Claude</option>
+                        <option value="xai">xAI (Grok)</option>
+                        <option value="openrouter">
+                            OpenRouter (Free Models Available)
+                        </option>
+                    </select>
+                    <p class="hint">
+                        Non-technical users can get a free API key from
+                        <a href="https://openrouter.ai/" target="_blank"
+                            >openrouter.ai</a
+                        >
+                        and select free models.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label for="model-select">Model</label>
+                    <select id="model-select"></select>
+                </div>
+
+                <div
+                    class="form-group"
+                    id="custom-model-group"
+                    style="display: none"
+                >
+                    <label for="custom-model-input">Custom Model ID</label>
+                    <input
+                        type="text"
+                        id="custom-model-input"
+                        placeholder="e.g. mistralai/mistral-7b-instruct:free"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="api-key-input">API Key</label>
+                    <input
+                        type="password"
+                        id="api-key-input"
+                        placeholder="Paste your API key here..."
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="enabled-toggle" checked />
+                        Enable WeBWorK Sidebar
+                    </label>
+                </div>
+
+                <button id="save-button" class="btn-primary">
+                    Save Configuration
+                </button>
+                <p id="status-msg"></p>
+            </section>
+
+            <footer>
+                <p>
+                    WeBWorK GPT v1.0.0 |
+                    <a
+                        href="https://github.com/theadev67/WeBWorK-GPT"
+                        target="_blank"
+                        >Source Code</a
+                    >
+                </p>
+            </footer>
+        </div>
+        <script type="module" src="disclaimer.js"></script>
+    </body>
+</html>
