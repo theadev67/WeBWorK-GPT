@@ -1,11 +1,18 @@
 {
     "manifest_version": 3,
-    "name": "WebWork GPT",
+    "name": "WeBWorK GPT",
     "version": "1.0.0",
     "description": "AI-powered hints, solutions, and math chat for WeBWorK problems.",
+
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+
     "permissions": ["storage", "clipboardWrite"],
+
     "host_permissions": [
-        "https://*.elearning.ubc.ca/*",
         "https://webwork.elearning.ubc.ca/*",
         "https://api.openai.com/*",
         "https://generativelanguage.googleapis.com/*",
@@ -13,10 +20,12 @@
         "https://api.anthropic.com/*",
         "https://openrouter.ai/*"
     ],
+
     "background": {
         "service_worker": "background.js",
         "type": "module"
     },
+
     "action": {
         "default_popup": "popup/popup.html",
         "default_icon": {
@@ -25,7 +34,14 @@
             "128": "icons/icon128.png"
         }
     },
+
     "content_scripts": [
+        {
+            "matches": ["https://webwork.elearning.ubc.ca/*"],
+            "js": ["content/typeset-bridge.js"],
+            "world": "MAIN",
+            "run_at": "document_idle"
+        },
         {
             "matches": ["https://webwork.elearning.ubc.ca/*"],
             "js": ["content/content.js"],
@@ -33,11 +49,25 @@
             "run_at": "document_idle"
         }
     ],
-    "options_page": "pages/disclaimer.html",
+
+    "options_ui": {
+        "page": "pages/disclaimer.html",
+        "open_in_tab": true
+    },
+
     "web_accessible_resources": [
         {
-            "resources": ["pages/*", "popup/*", "modules/*", "content/*"],
-            "matches": ["<all_urls>"]
+            "resources": [
+                "pages/*",
+                "popup/*",
+                "modules/*",
+                "content/*",
+                "icons/*"
+            ],
+            "matches": [
+                "https://webwork.elearning.ubc.ca/*",
+                "chrome-extension://*/*"
+            ]
         }
     ]
 }

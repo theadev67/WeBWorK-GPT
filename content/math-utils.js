@@ -1,31 +1,31 @@
 /**
- * Utility for MathJax typesetting and markdown rendering.
+ * math-utils.js — runs in ISOLATED world
+ *
+ * Cannot access window.MathJax directly (Chrome isolates content script JS).
+ * Instead we dispatch a CustomEvent on the shared DOM; typeset-bridge.js
+ * (registered as a MAIN-world content script) receives it and calls MathJax.
  */
 
+let _typesetCounter = 0;
+
 /**
- * Force MathJax to typeset the given element.
- * Retries up to ~3 seconds in case MathJax is still loading.
+ * Typeset an element by bridging to the MAIN world via a CustomEvent.
  */
 export function typeset(element) {
-    _typesetWithRetry(element, 0);
-}
-
-function _typesetWithRetry(element, attempt) {
-    if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([element]).catch(() => {});
-    } else if (attempt < 15) {
-        // Retry up to 3s (15 × 200ms)
-        setTimeout(() => _typesetWithRetry(element, attempt + 1), 200);
-    }
-    // After 15 attempts, silently give up — page has no MathJax
+    if (!element) return;
+    const uid = `wwgpt-ts-${++_typesetCounter}`;
+    element.dataset.wwgptTs = uid;
+    document.dispatchEvent(
+        new CustomEvent("wwgpt:typeset", { detail: { uid } })
+    );
 }
 
 /**
- * Adds click-to-copy functionality to all MathJax equations within an element.
+ * Click-to-copy for MathJax SVG math elements.
  */
 export function enableClickToCopy(element) {
     element.addEventListener("click", (e) => {
-        const mathContainer = e.target.closest("mjx-container");
+        const mathContainer = e.target.closest("mjx-container, .MathJax");
         if (!mathContainer) return;
 
         let tex = "";
@@ -37,18 +37,18 @@ export function enableClickToCopy(element) {
         ) {
             tex = script.textContent;
         } else {
-            const assistant = mathContainer.querySelector(
-                "mjx-assistive-mml annotation"
+            const ann = mathContainer.querySelector(
+                "mjx-assistive-mml annotation, .MJX_Assistive_MathML annotation"
             );
-            if (assistant) tex = assistant.textContent;
+            if (ann) tex = ann.textContent;
         }
 
         if (tex) {
             navigator.clipboard.writeText(tex).then(() => {
-                const originalBg = mathContainer.style.background;
+                const was = mathContainer.style.background;
                 mathContainer.style.background = "#d1fae5";
                 setTimeout(() => {
-                    mathContainer.style.background = originalBg;
+                    mathContainer.style.background = was;
                 }, 300);
             });
         }
@@ -57,63 +57,77 @@ export function enableClickToCopy(element) {
 
 /**
  * Convert LLM output (markdown + LaTeX) to safe HTML.
- * Handles: **bold**, *italic*, numbered lists, bullet lists, line breaks.
- * Preserves \(...\) and \[...\] LaTeX intact for MathJax.
+ *
+ * LaTeX \(...\) and \[...\] are stashed with null-byte placeholders BEFORE
+ * HTML escaping so they survive untouched, then restored verbatim for MathJax.
  */
 export function renderMarkdown(text) {
     if (!text) return "";
 
-    // Protect LaTeX blocks from markdown processing
-    const latexBlocks = [];
-    let safe = text
-        // Display math: \[ ... \]
-        .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
-            latexBlocks.push(`\\[${math}\\]`);
-            return `%%LATEX_BLOCK_${latexBlocks.length - 1}%%`;
-        })
-        // Inline math: \( ... \)
-        .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
-            latexBlocks.push(`\\(${math}\\)`);
-            return `%%LATEX_INLINE_${latexBlocks.length - 1}%%`;
-        });
+    // ── 1. Stash LaTeX ──────────────────────────────────────────────────────
+    const stash = [];
+    const ph = (math) => {
+        stash.push(math);
+        return `\x00${stash.length - 1}\x00`;
+    };
 
-    // Escape HTML (except we re-insert LaTeX later)
-    safe = safe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+    let s = text
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => ph(`\\[${m}\\]`))
+        .replace(/\\\(([^)\n]*?)\\\)/g, (_, m) => ph(`\\(${m}\\)`));
 
-    // Markdown transformations
-    safe = safe
-        // Bold **text**
-        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-        // Italic *text*
-        .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-        // Inline code `code`
-        .replace(/`([^`]+)`/g, "<code>$1</code>")
-        // Numbered list items: "1. text" or "**Step 1:** text"
-        .replace(/^(\d+)\.\s+/gm, "<li>")
-        // Bullet list items
-        .replace(/^[-*]\s+/gm, "<li>")
-        // Headers with ## or ###
-        .replace(/^###\s+(.+)$/gm, "<h4>$1</h4>")
-        .replace(/^##\s+(.+)$/gm, "<h3>$1</h3>")
-        // Line breaks
-        .replace(/\n\n/g, "</p><p>")
-        .replace(/\n/g, "<br>");
+    // ── 2. HTML-escape ───────────────────────────────────────────────────────
+    s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    // Wrap in paragraphs if needed
-    if (!safe.startsWith("<")) safe = `<p>${safe}</p>`;
+    // ── 3. Inline Markdown ───────────────────────────────────────────────────
+    s = s
+        .replace(/\*\*([^*\x00]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*\n\x00]+)\*/g, "<em>$1</em>")
+        .replace(/`([^`\x00]+)`/g, "<code>$1</code>")
+        .replace(/^#{3}\s+(.+)$/gm, "<h4>$1</h4>")
+        .replace(/^#{2}\s+(.+)$/gm, "<h3>$1</h3>");
 
-    // Re-insert LaTeX
-    safe = safe.replace(
-        /%%LATEX_BLOCK_(\d+)%%/g,
-        (_, i) => latexBlocks[parseInt(i)]
-    );
-    safe = safe.replace(
-        /%%LATEX_INLINE_(\d+)%%/g,
-        (_, i) => latexBlocks[parseInt(i)]
-    );
+    // ── 4. Block structure ───────────────────────────────────────────────────
+    const lines = s.split("\n");
+    const out = [];
+    let para = [];
 
-    return safe;
+    const flushPara = () => {
+        if (para.length) {
+            out.push(`<p>${para.join("<br>")}</p>`);
+            para = [];
+        }
+    };
+
+    for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (!line) {
+            flushPara();
+        } else if (/^<h[34]/.test(line)) {
+            flushPara();
+            out.push(line);
+        } else if (/^\d+\.\s/.test(line)) {
+            flushPara();
+            out.push(
+                `<p class="wwgpt-step">${line.replace(
+                    /^(\d+\.\s)/,
+                    "<strong>$1</strong>"
+                )}</p>`
+            );
+        } else if (/^[-*•]\s/.test(line)) {
+            flushPara();
+            out.push(
+                `<p class="wwgpt-bullet">${line.replace(/^[-*•]\s/, "• ")}</p>`
+            );
+        } else {
+            para.push(line);
+        }
+    }
+    flushPara();
+
+    s = out.join("");
+
+    // ── 5. Restore LaTeX ─────────────────────────────────────────────────────
+    s = s.replace(/\x00(\d+)\x00/g, (_, i) => stash[parseInt(i)]);
+
+    return s;
 }

@@ -71,16 +71,16 @@ export async function mountSidebar() {
 }
 
 function setupEvents(sidebar) {
-    // Toggle sidebar collapse
+    // Toggle sidebar collapse (header click, but not buttons inside)
+    sidebar.querySelector(".wwgpt-logo").addEventListener("click", () => {
+        sidebar.classList.toggle("wwgpt-collapsed");
+    });
     sidebar
         .querySelector(".wwgpt-toggle-btn")
         .addEventListener("click", (e) => {
             e.stopPropagation();
             sidebar.classList.toggle("wwgpt-collapsed");
         });
-    sidebar.querySelector(".wwgpt-header").addEventListener("click", () => {
-        sidebar.classList.toggle("wwgpt-collapsed");
-    });
 
     // Tab switching
     sidebar.querySelectorAll(".wwgpt-tab").forEach((tab) => {
@@ -90,22 +90,20 @@ function setupEvents(sidebar) {
                 .querySelectorAll(".wwgpt-tab")
                 .forEach((t) => t.classList.remove("active"));
             tab.classList.add("active");
-            const target = tab.dataset.tab;
             sidebar
                 .querySelectorAll(".wwgpt-tab-content")
                 .forEach((c) => c.classList.add("hidden"));
             sidebar
-                .querySelector(`#wwgpt-tab-${target}`)
+                .querySelector(`#wwgpt-tab-${tab.dataset.tab}`)
                 .classList.remove("hidden");
-            // Scroll chat to bottom when switching to chat tab
-            if (target === "chat") {
+            if (tab.dataset.tab === "chat") {
                 const log = sidebar.querySelector("#wwgpt-chat-log");
                 log.scrollTop = log.scrollHeight;
             }
         });
     });
 
-    // Toggle collapsible cards (hints + solution)
+    // Toggle collapsible cards
     sidebar.querySelectorAll(".wwgpt-card-header").forEach((header) => {
         header.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -113,7 +111,7 @@ function setupEvents(sidebar) {
         });
     });
 
-    // Regenerate button
+    // Regenerate
     sidebar.querySelector("#wwgpt-regen").addEventListener("click", (e) => {
         e.stopPropagation();
         generateAll(true);
@@ -141,13 +139,64 @@ async function loadCachedOrGenerate() {
     )?.value;
     const cached = await Cache.get(problemPath, randomSeed);
     if (cached) {
-        displayHints(cached.hints);
-        displaySolution(cached.solution);
+        displayHints(cached.hints, true);
+        displaySolution(cached.solution, true);
         displayChatHistory(cached.chatHistory);
     } else {
         generateAll();
     }
 }
+
+// ─── Retry helpers ────────────────────────────────────────────────────────────
+
+async function callWithRetry(fn, maxRetries = 2) {
+    let lastErr;
+    for (let i = 0; i <= maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (e) {
+            lastErr = e;
+            if (i < maxRetries) {
+                const delay = 1200 * (i + 1);
+                console.warn(
+                    `[WeBWorK GPT] Retry ${
+                        i + 1
+                    }/${maxRetries} after ${delay}ms:`,
+                    e.message
+                );
+                await new Promise((r) => setTimeout(r, delay));
+            }
+        }
+    }
+    throw lastErr;
+}
+
+/**
+ * Extract JSON from LLM response that may wrap it in code fences or have extra text.
+ */
+function extractJSON(raw) {
+    // Remove markdown fences
+    let cleaned = raw
+        .replace(/```(?:json)?\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+    // Try direct parse first
+    try {
+        return JSON.parse(cleaned);
+    } catch {}
+    // Find first {...} block
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+        try {
+            return JSON.parse(match[0]);
+        } catch {}
+    }
+    // Last resort: try to fix common escape issues then parse
+    const fixed = cleaned.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+    return JSON.parse(fixed);
+}
+
+// ─── Main generation ──────────────────────────────────────────────────────────
 
 async function generateAll(force = false) {
     const settings = await Settings.get();
@@ -160,47 +209,61 @@ async function generateAll(force = false) {
     const problem = extractProblem();
     if (!problem) return;
 
-    const loading = document.getElementById("wwgpt-loading");
-    loading.classList.remove("hidden");
+    const loadingEl = document.getElementById("wwgpt-loading");
+    loadingEl.classList.remove("hidden");
 
-    // Clear previous content
+    // Clear previous output
     for (let i = 1; i <= 3; i++) {
         const body = document.querySelector(`#wwgpt-hint${i} .wwgpt-card-body`);
-        if (body) body.innerHTML = "";
+        if (body) {
+            body.innerHTML = "";
+            document.getElementById(`wwgpt-hint${i}`).classList.remove("open");
+        }
     }
-    const solBody = document.querySelector("#wwgpt-solution .wwgpt-card-body");
-    if (solBody) solBody.innerHTML = "";
+    const solCard = document.getElementById("wwgpt-solution");
+    const solBody = solCard?.querySelector(".wwgpt-card-body");
+    if (solBody) {
+        solBody.innerHTML = "";
+        solCard.classList.remove("open");
+    }
 
     try {
         const images = await fetchImagesAsBase64(problem.images);
 
+        // ── Hints ──
         document.getElementById("wwgpt-loading-text").textContent =
             "Generating hints...";
         const hintsPrompt = buildHintsPrompt(problem.text);
-        const hintsResponse = await complete(
-            [
-                { role: "system", content: hintsPrompt.system },
-                buildMultimodalUserMessage(hintsPrompt.user, images),
-            ],
-            settings.llmConfig
-        );
-        const hints = JSON.parse(
-            hintsResponse.replace(/```(?:json)?|```/g, "").trim()
-        );
-        displayHints(hints);
 
+        const hints = await callWithRetry(async () => {
+            const raw = await complete(
+                [
+                    { role: "system", content: hintsPrompt.system },
+                    buildMultimodalUserMessage(hintsPrompt.user, images),
+                ],
+                settings.llmConfig
+            );
+            return extractJSON(raw);
+        });
+        displayHints(hints, true); // auto-open hint 1
+
+        // ── Solution ──
         document.getElementById("wwgpt-loading-text").textContent =
             "Writing solution...";
         const solutionPrompt = buildSolutionPrompt(problem.text);
-        const solution = await complete(
-            [
-                { role: "system", content: solutionPrompt.system },
-                buildMultimodalUserMessage(solutionPrompt.user, images),
-            ],
-            settings.llmConfig
-        );
-        displaySolution(solution);
 
+        const solution = await callWithRetry(() =>
+            complete(
+                [
+                    { role: "system", content: solutionPrompt.system },
+                    buildMultimodalUserMessage(solutionPrompt.user, images),
+                ],
+                settings.llmConfig
+            )
+        );
+        displaySolution(solution, true); // auto-open solution card
+
+        // ── Cache ──
         const problemPath = window.location.pathname;
         const randomSeed = document.querySelector(
             'input[name="effectiveSummarizedRandomSeed"]'
@@ -212,32 +275,34 @@ async function generateAll(force = false) {
         });
     } catch (err) {
         console.error("Generation failed:", err);
-        const loading = document.getElementById("wwgpt-loading");
-        const errDiv = document.createElement("div");
-        errDiv.className = "wwgpt-error";
-        errDiv.textContent = "⚠️ " + err.message;
-        loading.insertAdjacentElement("afterend", errDiv);
-        setTimeout(() => errDiv.remove(), 8000);
+        showError(err.message);
     } finally {
-        loading.classList.add("hidden");
+        loadingEl.classList.add("hidden");
     }
 }
 
-function displayHints(hints) {
+// ─── Display helpers ──────────────────────────────────────────────────────────
+
+function displayHints(hints, autoOpen = false) {
     if (!hints) return;
     for (let i = 1; i <= 3; i++) {
-        const body = document.querySelector(`#wwgpt-hint${i} .wwgpt-card-body`);
+        const card = document.getElementById(`wwgpt-hint${i}`);
+        const body = card?.querySelector(".wwgpt-card-body");
         if (!body) continue;
         body.innerHTML = renderMarkdown(hints[`hint${i}`] || "");
+        // Auto-open only the first hint
+        if (autoOpen && i === 1) card.classList.add("open");
         typeset(body);
     }
 }
 
-function displaySolution(solution) {
+function displaySolution(solution, autoOpen = false) {
     if (!solution) return;
-    const body = document.querySelector("#wwgpt-solution .wwgpt-card-body");
+    const card = document.getElementById("wwgpt-solution");
+    const body = card?.querySelector(".wwgpt-card-body");
     if (!body) return;
     body.innerHTML = renderMarkdown(solution);
+    if (autoOpen) card.classList.add("open");
     typeset(body);
 }
 
@@ -258,6 +323,17 @@ function appendMessage(role, content) {
     typeset(msgDiv);
 }
 
+function showError(msg) {
+    const loadingEl = document.getElementById("wwgpt-loading");
+    const errDiv = document.createElement("div");
+    errDiv.className = "wwgpt-error";
+    errDiv.textContent = "⚠️ " + msg;
+    loadingEl.insertAdjacentElement("afterend", errDiv);
+    setTimeout(() => errDiv.remove(), 10000);
+}
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+
 async function sendChatMessage() {
     const input = document.getElementById("wwgpt-chat-input");
     const text = input.value.trim();
@@ -276,31 +352,32 @@ async function sendChatMessage() {
     appendMessage("user", text);
     input.value = "";
 
+    // Typing indicator
+    const log = document.getElementById("wwgpt-chat-log");
+    const typing = document.createElement("div");
+    typing.id = "wwgpt-typing";
+    typing.className = "wwgpt-msg assistant wwgpt-typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    log.appendChild(typing);
+    log.scrollTop = log.scrollHeight;
+
     const messages = [
         { role: "system", content: buildChatSystemPrompt(problem.text) },
         ...cached.chatHistory,
         { role: "user", content: text },
     ];
 
-    // Show typing indicator
-    const typingId = "wwgpt-typing";
-    const log = document.getElementById("wwgpt-chat-log");
-    const typing = document.createElement("div");
-    typing.id = typingId;
-    typing.className = "wwgpt-msg assistant wwgpt-typing";
-    typing.innerHTML = "<span></span><span></span><span></span>";
-    log.appendChild(typing);
-    log.scrollTop = log.scrollHeight;
-
     try {
-        const assistantMsg = await complete(messages, settings.llmConfig);
-        document.getElementById(typingId)?.remove();
+        const assistantMsg = await callWithRetry(() =>
+            complete(messages, settings.llmConfig)
+        );
+        document.getElementById("wwgpt-typing")?.remove();
         appendMessage("assistant", assistantMsg);
         cached.chatHistory.push({ role: "user", content: text });
         cached.chatHistory.push({ role: "assistant", content: assistantMsg });
         await Cache.set(problemPath, randomSeed, cached);
     } catch (err) {
-        document.getElementById(typingId)?.remove();
+        document.getElementById("wwgpt-typing")?.remove();
         appendMessage("assistant", "⚠️ Error: " + err.message);
     }
 }
