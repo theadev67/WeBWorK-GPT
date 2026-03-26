@@ -15,18 +15,40 @@ A Chrome extension that provides AI-generated assistance for WeBWorK problems. I
 
 ## Installation
 
-1. Clone this repository or download the source code.
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable "Developer mode" in the top right corner.
-4. Click "Load unpacked" and select the root directory of this project.
+Pick the option that fits your comfort level:
+
+---
+
+### Option A: Download ZIP (recommended for most users)
+
+1. On the GitHub page, click the green **Code** button, then click **Download ZIP**.
+2. Once downloaded, unzip the file and move the folder somewhere permanent — like your **Documents** folder. 
+   > ⚠️ Don't delete this folder after installing. Chrome loads the extension directly from it.
+3. Open Chrome and go to `chrome://extensions/`.
+4. Turn on **Developer mode** using the toggle in the top-right corner.
+   > This is a safe, built-in Chrome feature that lets you install extensions from your computer instead of the Chrome Web Store.
+5. Click **Load unpacked** and select the folder you extracted in step 2.
+6. WeBWorK-GPT will now appear in your extensions list. You're all set!
+
+---
+
+### Option B: Clone the repository (for developers)
+
+1. In your terminal, run:
+   ```bash
+   git clone https://github.com/your-username/WeBWorK-GPT.git ~/Documents/WeBWorK-GPT
+   ```
+2. Open Chrome and go to `chrome://extensions/`.
+3. Enable **Developer mode** in the top-right corner.
+4. Click **Load unpacked** and select the cloned folder.
 
 ## Configuration
 
 Upon installation, the disclaimer and options page will open automatically. You must:
 
 1. **Read and Accept** the disclaimer.
-2. **Configure your API Key**: Enter an API key for your preferred provider (OpenAI, Gemini, Anthropic, xAI, or OpenRouter).
-    - _Tip_: Non-technical users can get a free API key from [OpenRouter](https://openrouter.ai/) and select free models like `google/gemini-2.0-flash-exp:free`.
+2. **Configure your API Key**: Enter an API key for your preferred provider (currently supports Google Gemini only).
+    - _Tip_: You can get a free API key from [Google AI Studio](https://aistudio.google.com/api-keys) and select free models like `gemini-2.5-flash`.
 
 ## Disclaimer
 
