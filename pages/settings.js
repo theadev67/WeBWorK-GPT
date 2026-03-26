@@ -3,6 +3,7 @@ import { Settings } from "../modules/storage.js";
 
 const providerSelect = document.getElementById("provider-select");
 const modelSelect = document.getElementById("model-select");
+const chatModelSelect = document.getElementById("chat-model-select");
 const customModelGroup = document.getElementById("custom-model-group");
 const customModelInput = document.getElementById("custom-model-input");
 const apiKeyInput = document.getElementById("api-key-input");
@@ -12,22 +13,58 @@ const saveButton = document.getElementById("save-button");
 const statusMsg = document.getElementById("status-msg");
 
 // Populate models based on provider
-function updateModelList(provider) {
+function updateModelList(provider, currentPrimary = null, currentChat = null) {
     const models = PROVIDER_MODELS[provider] || [];
+
+    // Clear and populate Primary Model (only JSON-capable models)
     modelSelect.innerHTML = "";
-
-    models.forEach((m) => {
-        const opt = document.createElement("option");
-        opt.value = m.id;
-        opt.textContent = m.label;
-        modelSelect.appendChild(opt);
-    });
-
-    // Add custom option
+    models
+        .filter((m) => m.supportsJson !== false)
+        .forEach((m) => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent =
+                m.name + (m.primaryComment ? ` (${m.primaryComment})` : "");
+            modelSelect.appendChild(opt);
+        });
+    // Add custom option to primary
     const customOpt = document.createElement("option");
     customOpt.value = "custom";
     customOpt.textContent = "Custom... (Paste ID)";
     modelSelect.appendChild(customOpt);
+
+    // Clear and populate Chat Model
+    chatModelSelect.innerHTML = "";
+    models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.name + (m.chatComment ? ` (${m.chatComment})` : "");
+        chatModelSelect.appendChild(opt);
+    });
+
+    // Default logic for Gemini
+    if (provider === "gemini") {
+        if (!currentPrimary) modelSelect.value = "gemini-2.5-flash";
+        if (!currentChat) chatModelSelect.value = "gemma-3-27b-it";
+    }
+
+    if (currentPrimary) {
+        const isPredefined = Array.from(modelSelect.options).some(
+            (o) => o.value === currentPrimary
+        );
+        if (isPredefined) {
+            modelSelect.value = currentPrimary;
+        } else {
+            modelSelect.value = "custom";
+            customModelInput.value = currentPrimary;
+        }
+    }
+    if (currentChat) {
+        const isPredefined = Array.from(chatModelSelect.options).some(
+            (o) => o.value === currentChat
+        );
+        if (isPredefined) chatModelSelect.value = currentChat;
+    }
 
     handleModelChange();
 }
@@ -46,22 +83,7 @@ async function loadSettings() {
         providerSelect.value = config.provider;
     }
 
-    updateModelList(providerSelect.value);
-
-    if (config.model) {
-        // Check if it's one of the predefined models
-        const isPredefined = Array.from(modelSelect.options).some(
-            (opt) => opt.value === config.model
-        );
-        if (isPredefined) {
-            modelSelect.value = config.model;
-        } else {
-            modelSelect.value = "custom";
-            customModelInput.value = config.model;
-        }
-    }
-
-    handleModelChange();
+    updateModelList(providerSelect.value, config.model, config.chatModel);
 
     if (config.apiKey) apiKeyInput.value = config.apiKey;
 
@@ -82,8 +104,10 @@ async function saveSettings() {
             ? customModelInput.value.trim()
             : modelSelect.value;
 
-    if (!modelValue) {
-        statusMsg.textContent = "❌ Please select or enter a model.";
+    const chatModelValue = chatModelSelect.value;
+
+    if (!modelValue || !chatModelValue) {
+        statusMsg.textContent = "❌ Please select models.";
         statusMsg.style.color = "red";
         return;
     }
@@ -91,6 +115,7 @@ async function saveSettings() {
     const llmConfig = {
         provider: providerSelect.value,
         model: modelValue,
+        chatModel: chatModelValue,
         apiKey: apiKeyInput.value,
     };
 

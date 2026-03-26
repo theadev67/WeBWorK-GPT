@@ -3,25 +3,34 @@
 // ---------------------------------------------------------------------------
 
 export const GEMINI_MODELS = [
-    // Primary workhorse: thinking=true, 500 RPD, 15 RPM
     {
         id: "gemini-3.1-flash-lite-preview",
-        label: "Gemini 3.1 Flash Lite (Latest, Fast)",
+        name: "Gemini 3.1 Flash Lite",
+        primaryComment: "Latest, Fast",
     },
-    // Step up for hard problems: thinking=true, 20 RPD
-    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (Latest, Best)" },
-    // Fallback: well-proven math, thinking=true, 5 RPM / 20 RPD
+    {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash",
+        primaryComment: "Latest, Best",
+    },
     {
         id: "gemini-2.5-flash",
-        label: "Gemini 2.5 Flash (Balanced, Recommended ⭐)",
+        name: "Gemini 2.5 Flash",
+        primaryComment: "Balanced, Recommended ⭐",
     },
-    // Lighter fallback: thinking=true, 10 RPM / 20 RPD
-    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
-    // Last resort: no thinking, but 30 RPM / 14.4K RPD — virtually unlimited for personal use
-    { id: "gemma-3-27b-it", label: "Gemma 3 27B (Highest Rate Limit ✨)" },
-    { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
-    { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
-    { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
+    {
+        id: "gemini-2.5-flash-lite",
+        name: "Gemini 2.5 Flash-Lite",
+    },
+    {
+        id: "gemma-3-27b-it",
+        name: "Gemma 3 27B",
+        chatComment: "Highest Rate Limit ✨",
+        supportsJson: false,
+    },
+    { id: "gemma-3-12b-it", name: "Gemma 3 12B", supportsJson: false },
+    { id: "gemma-3-4b-it", name: "Gemma 3 4B", supportsJson: false },
+    { id: "gemma-3-1b-it", name: "Gemma 3 1B", supportsJson: false },
 ];
 
 export const PROVIDER_MODELS = {

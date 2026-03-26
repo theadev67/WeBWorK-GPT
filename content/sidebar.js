@@ -484,7 +484,10 @@ async function _sendChatMessage() {
         const reply = await _callWithRetry(() =>
             complete(
                 messages,
-                { ...settings.llmConfig, model: "gemma-3-27b-it" },
+                {
+                    ...settings.llmConfig,
+                    model: settings.llmConfig.chatModel || "gemma-3-27b-it",
+                },
                 null,
                 "chat"
             )
