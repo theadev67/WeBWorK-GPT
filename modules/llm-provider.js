@@ -1,84 +1,100 @@
+// ---------------------------------------------------------------------------
+// Model list — ordered best → least suitable for math (see rate limit notes)
+// ---------------------------------------------------------------------------
+
+export const GEMINI_MODELS = [
+    // Primary workhorse: thinking=true, 500 RPD, 15 RPM
+    {
+        id: "gemini-3.1-flash-lite-preview",
+        label: "Gemini 3.1 Flash Lite (Latest, Fast)",
+    },
+    // Step up for hard problems: thinking=true, 20 RPD
+    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (Latest, Best)" },
+    // Fallback: well-proven math, thinking=true, 5 RPM / 20 RPD
+    {
+        id: "gemini-2.5-flash",
+        label: "Gemini 2.5 Flash (Balanced, Recommended ⭐)",
+    },
+    // Lighter fallback: thinking=true, 10 RPM / 20 RPD
+    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+    // Last resort: no thinking, but 30 RPM / 14.4K RPD — virtually unlimited for personal use
+    { id: "gemma-3-27b-it", label: "Gemma 3 27B (Gemma has higher rate limit)" },
+    { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
+    { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
+    { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
+];
+
 export const PROVIDER_MODELS = {
-    openai: [
-        { id: "gpt-4o", label: "GPT-4o" },
-        { id: "gpt-4o-mini", label: "GPT-4o mini" },
-        { id: "o3-mini", label: "o3-mini" },
-    ],
-    gemini: [
-        { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-        { id: "gemini-2.0-pro-exp-02-05", label: "Gemini 2.0 Pro" },
-    ],
-    xai: [
-        { id: "grok-2-1212", label: "Grok 2" },
-        { id: "grok-beta", label: "Grok Beta" },
-    ],
-    claude: [
-        { id: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet" },
-        { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
-    ],
-    openrouter: [
-        { id: "openrouter/auto", label: "Auto (Best for budget/quality)" },
-        {
-            id: "google/gemini-2.0-flash-exp:free",
-            label: "Gemini 2.0 Flash (Free)",
-        },
-        {
-            id: "nvidia/nemotron-3-super-120b-a12b:free",
-            label: "Nemotron 3 Super (Free)",
-        },
-        { id: "openrouter/free", label: "OpenRouter Free (Dynamic)" },
-    ],
+    gemini: GEMINI_MODELS,
 };
+
+// ---------------------------------------------------------------------------
+// Hint JSON schema — enforced at the API level via responseSchema
+// ---------------------------------------------------------------------------
+
+const HINT_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+        hint1: { type: "STRING" },
+        hint2: { type: "STRING" },
+        hint3: { type: "STRING" },
+    },
+    required: ["hint1", "hint2", "hint3"],
+};
+
+// ---------------------------------------------------------------------------
+// Per-mode generation config
+// thinkingBudget: 0 = off (fast, good for hints), higher = more reasoning depth
+// ---------------------------------------------------------------------------
+
+const MODE_CONFIG = {
+    hint: { maxOutputTokens: 1024, thinkingBudget: 0 },
+    solution: { maxOutputTokens: 4096, thinkingBudget: 1024 },
+    chat: { maxOutputTokens: 2048, thinkingBudget: 256 },
+};
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
  * Unified entry point for LLM completions.
- * It automatically detects if it needs to proxy the request to the background script
- * (to bypass CSP and ensure header consistency) or call the API directly.
+ * Proxies to the background service worker when called from a content script
+ * or popup (required to bypass CSP and keep the API key out of page context).
+ *
+ * @param {Array}    messages  - Chat history in { role, content } format.
+ * @param {Object}   config    - { model: string, apiKey: string }
+ * @param {Function} onChunk   - Optional streaming callback (solution/chat only).
+ * @param {string}   mode      - "hint" | "solution" | "chat"
  */
-export async function complete(messages, config, onChunk = null) {
-    // If we are in a window (content script, popup, options) and the extension is available,
-    // we proxy to the background script.
+export async function complete(
+    messages,
+    config,
+    onChunk = null,
+    mode = "chat"
+) {
     if (
         typeof window !== "undefined" &&
         typeof chrome !== "undefined" &&
-        chrome.runtime &&
-        chrome.runtime.id
+        chrome.runtime?.id
     ) {
-        return _proxyToBackground(messages, config, onChunk);
+        return _proxyToBackground(messages, config, onChunk, mode);
     }
-    // Otherwise, we are in the background script or a non-extension environment
-    return _directComplete(messages, config, onChunk);
+    return _callGemini(messages, config, onChunk, mode);
 }
 
-/**
- * Perform the actual API call.
- */
-async function _directComplete(messages, config, onChunk = null) {
-    switch (config.provider) {
-        case "openai":
-        case "xai":
-        case "openrouter":
-            return _openaiCompatible(messages, config, onChunk);
-        case "gemini":
-            return _gemini(messages, config, onChunk);
-        case "claude":
-            return _claude(messages, config, onChunk);
-        default:
-            throw new Error(`Unknown provider: ${config.provider}`);
-    }
-}
+// ---------------------------------------------------------------------------
+// Background proxy (content script → service worker via port)
+// ---------------------------------------------------------------------------
 
-/**
- * Proxy the request to the background service worker using a port (for streaming support).
- */
-function _proxyToBackground(messages, config, onChunk) {
+function _proxyToBackground(messages, config, onChunk, mode) {
     return new Promise((resolve, reject) => {
         try {
             const port = chrome.runtime.connect({ name: "llm-stream" });
 
             port.onMessage.addListener((msg) => {
                 if (msg.type === "chunk") {
-                    if (onChunk) onChunk(msg.data);
+                    onChunk?.(msg.data);
                 } else if (msg.type === "done") {
                     resolve(msg.data);
                     port.disconnect();
@@ -89,76 +105,33 @@ function _proxyToBackground(messages, config, onChunk) {
             });
 
             port.onDisconnect.addListener(() => {
-                const lastError = chrome.runtime.lastError;
-                if (lastError) {
-                    reject(
-                        new Error(
-                            "Extension port disconnected: " + lastError.message
-                        )
-                    );
-                } else {
-                    // Normal disconnect (or other side disconnected without error message)
-                }
+                const err = chrome.runtime.lastError;
+                if (err) reject(new Error("Port disconnected: " + err.message));
             });
 
-            port.postMessage({ messages, config });
+            port.postMessage({ messages, config, mode });
         } catch (err) {
             reject(err);
         }
     });
 }
 
-async function _openaiCompatible(messages, config, onChunk) {
-    let baseURL = "https://api.openai.com/v1";
-    if (config.provider === "xai") baseURL = "https://api.x.ai/v1";
-    if (config.provider === "openrouter")
-        baseURL = "https://openrouter.ai/api/v1";
+// ---------------------------------------------------------------------------
+// Gemini REST call
+// ---------------------------------------------------------------------------
 
-    const res = await fetch(`${baseURL}/chat/completions`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            "Content-Type": "application/json",
-            ...(config.provider === "openrouter"
-                ? {
-                      "HTTP-Referer":
-                          "https://github.com/theadev67/WeBWorK-GPT",
-                      "X-Title": "WeBWorK GPT",
-                  }
-                : {}),
-        },
-        body: JSON.stringify({
-            model: config.model,
-            messages,
-            stream: !!onChunk,
-            max_tokens: 2048,
-            temperature: 0.3,
-        }),
-    });
+async function _callGemini(messages, config, onChunk, mode) {
+    const { maxOutputTokens, thinkingBudget } =
+        MODE_CONFIG[mode] ?? MODE_CONFIG.chat;
+    const isGemma = config.model.startsWith("gemma-");
+    const isHint = mode === "hint";
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-            `${config.provider} API error: ${res.status} ${
-                err.error?.message || ""
-            }`
-        );
-    }
+    // JSON streaming is not useful — accumulating and then parsing loses the point.
+    // Force non-streaming for hints; respect caller preference for everything else.
+    const streaming = !!onChunk && !isHint;
 
-    if (onChunk) {
-        return _consumeSSE(
-            res,
-            onChunk,
-            (data) => data.choices?.[0]?.delta?.content ?? ""
-        );
-    }
-    const json = await res.json();
-    return json.choices[0].message.content;
-}
-
-async function _gemini(messages, config, onChunk) {
     const systemMsg = messages.find((m) => m.role === "system");
-    const userMsgs = messages
+    const contents = messages
         .filter((m) => m.role !== "system")
         .map((m) => {
             if (Array.isArray(m.content)) {
@@ -188,24 +161,43 @@ async function _gemini(messages, config, onChunk) {
             };
         });
 
-    const endpoint = onChunk
-        ? `streamGenerateContent?alt=sse&key=${config.apiKey}`
-        : `generateContent?key=${config.apiKey}`;
+    const generationConfig = {
+        maxOutputTokens,
+        temperature: 0.3,
+        // Hint mode: enforce JSON schema at the API level (no prompt engineering needed)
+        ...(isHint
+            ? {
+                  responseMimeType: "application/json",
+                  responseSchema: HINT_SCHEMA,
+              }
+            : {}),
+        // Gemma models don't support thinkingConfig — skip it entirely for them
+        ...(!isGemma ? { thinkingConfig: { thinkingBudget } } : {}),
+    };
 
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:${endpoint}`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                systemInstruction: systemMsg
-                    ? { parts: [{ text: systemMsg.content }] }
-                    : undefined,
-                contents: userMsgs,
-                generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
-            }),
-        }
-    );
+    const endpoint = streaming
+        ? "streamGenerateContent?alt=sse"
+        : "generateContent";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:${endpoint}`;
+
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": config.apiKey,
+        },
+        body: JSON.stringify({
+            ...(systemMsg
+                ? {
+                      systemInstruction: {
+                          parts: [{ text: systemMsg.content }],
+                      },
+                  }
+                : {}),
+            contents,
+            generationConfig,
+        }),
+    });
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -214,86 +206,21 @@ async function _gemini(messages, config, onChunk) {
         );
     }
 
-    if (onChunk) {
+    if (streaming) {
         return _consumeSSE(
             res,
             onChunk,
             (data) => data.candidates?.[0]?.content?.parts?.[0]?.text ?? ""
         );
     }
+
     const json = await res.json();
-    return json.candidates[0].content.parts[0].text;
+    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function _claude(messages, config, onChunk) {
-    const systemMsg = messages.find((m) => m.role === "system")?.content ?? "";
-    const filtered = messages
-        .filter((m) => m.role !== "system")
-        .map((m) => {
-            if (Array.isArray(m.content)) {
-                return {
-                    role: m.role,
-                    content: m.content
-                        .map((c) => {
-                            if (c.type === "text")
-                                return { type: "text", text: c.text };
-                            if (c.type === "image_url") {
-                                const base64Data =
-                                    c.image_url.url.split(",")[1];
-                                const mimeType = c.image_url.url
-                                    .split(":")[1]
-                                    .split(";")[0];
-                                return {
-                                    type: "image",
-                                    source: {
-                                        type: "base64",
-                                        media_type: mimeType,
-                                        data: base64Data,
-                                    },
-                                };
-                            }
-                            return null;
-                        })
-                        .filter(Boolean),
-                };
-            }
-            return m;
-        });
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-            "x-api-key": config.apiKey,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-            "dangerously-allow-browser": "true",
-        },
-        body: JSON.stringify({
-            model: config.model,
-            system: systemMsg,
-            messages: filtered,
-            max_tokens: 2048,
-            stream: !!onChunk,
-        }),
-    });
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-            `Claude API error: ${res.status} ${err.error?.message || ""}`
-        );
-    }
-
-    if (onChunk) {
-        return _consumeSSE(res, onChunk, (data) => {
-            if (data.type === "content_block_delta")
-                return data.delta?.text ?? "";
-            return "";
-        });
-    }
-    const json = await res.json();
-    return json.content[0].text;
-}
+// ---------------------------------------------------------------------------
+// SSE streaming helper
+// ---------------------------------------------------------------------------
 
 async function _consumeSSE(res, onChunk, extractText) {
     const reader = res.body.getReader();
@@ -306,7 +233,7 @@ async function _consumeSSE(res, onChunk, extractText) {
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        buffer = lines.pop();
+        buffer = lines.pop(); // keep incomplete trailing line
 
         for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -320,7 +247,7 @@ async function _consumeSSE(res, onChunk, extractText) {
                     onChunk(chunk);
                 }
             } catch {
-                /* skip malformed chunks */
+                /* skip malformed SSE frames */
             }
         }
     }

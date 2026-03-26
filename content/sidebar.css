@@ -140,6 +140,7 @@
     background: #fff;
     transition: border-color 0.2s;
     flex-shrink: 0;
+    overflow-x: auto;
 }
 
 .wwgpt-card:hover {

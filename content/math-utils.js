@@ -72,8 +72,32 @@ export function renderMarkdown(text) {
     };
 
     let s = text
-        .replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => ph(`\\[${m}\\]`))
-        .replace(/\\\(([^)\n]*?)\\\)/g, (_, m) => ph(`\\(${m}\\)`));
+        // 1a. Display Math: \[...\] or $$...$$
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_, m) =>
+            ph(`<script type="math/tex; mode=display">${m}</script>`)
+        )
+        .replace(/\$\$([\s\S]*?)\$\$/g, (_, m) =>
+            ph(`<script type="math/tex; mode=display">${m}</script>`)
+        )
+
+        // 1b. Special fallback for [ ... ] which is a common LLM near-miss for display math.
+        // Triggered only if it contains a backslash (indicating LaTeX).
+        .replace(/(?:\n|^)\[([\s\S]*?\\+[\s\S]*?)\](?:\n|$)/g, (_, m) =>
+            ph(`\n<script type="math/tex; mode=display">${m}</script>\n`)
+        )
+
+        // 1c. Inline Math: \(...\) or $...$
+        .replace(/\\\((([\s\S])*?)\\\)/g, (_, m) =>
+            ph(`<script type="math/tex">${m}</script>`)
+        )
+        .replace(/\$([^\$\n]+)\$/g, (_, m) =>
+            ph(`<script type="math/tex">${m}</script>`)
+        )
+
+        // 1d. Special fallback for ( ... ) if it contains a backslash and looks like math
+        .replace(/\(([\s\S]*?\\+[\s\S]*?)\)/g, (_, m) =>
+            ph(`<script type="math/tex">${m}</script>`)
+        );
 
     // ── 2. HTML-escape ───────────────────────────────────────────────────────
     s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
