@@ -388,3 +388,25 @@
 #wwgpt-chat-send:hover {
     background: #1d3899;
 }
+
+/* ===== Success Message ===== */
+.wwgpt-success {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    color: #16a34a;
+    font-size: 13px;
+    font-weight: 600;
+    transition: opacity 0.5s ease;
+    opacity: 0;
+}
+
+.wwgpt-success.show {
+    opacity: 1;
+}
+
+.wwgpt-success-icon {
+    font-size: 16px;
+}

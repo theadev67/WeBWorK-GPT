@@ -139,8 +139,8 @@ async function _loadCachedOrGenerate() {
     const { path, seed } = _problemKey();
     const cached = await Cache.get(path, seed);
     if (cached) {
-        _displayHints(cached.hints, true);
-        _displaySolution(cached.solution, true);
+        _displayHints(cached.hints, false);
+        _displaySolution(cached.solution, false);
         _displayChatHistory(cached.chatHistory);
     } else {
         generateAll();
@@ -225,7 +225,7 @@ async function generateAll(force = false) {
             );
             return JSON.parse(raw);
         });
-        _displayHints(hints, true);
+        _displayHints(hints, false);
 
         // Solution — free-form markdown, no JSON schema
         loadingTextEl.textContent = "Writing solution...";
@@ -241,7 +241,8 @@ async function generateAll(force = false) {
                 "solution"
             )
         );
-        _displaySolution(solution, true);
+        _displaySolution(solution, false);
+        _showSuccessNotification();
 
         // Persist — preserve existing chat history across regeneration
         const { path, seed } = _problemKey();
@@ -310,6 +311,40 @@ function _showError(msg) {
     errDiv.textContent = msg;
     loadingEl.insertAdjacentElement("afterend", errDiv);
     setTimeout(() => errDiv.remove(), 10000);
+}
+
+function _showSuccessNotification() {
+    const tabHints = document.getElementById("wwgpt-tab-hints");
+    if (!tabHints) return;
+
+    // Remove any existing notification
+    const existing = tabHints.querySelector(".wwgpt-success");
+    if (existing) existing.remove();
+
+    const notification = document.createElement("div");
+    notification.className = "wwgpt-success";
+    notification.innerHTML = `
+        <span class="wwgpt-success-icon">✅</span>
+        <span class="wwgpt-success-text">Hints and Solutions generated</span>
+    `;
+
+    // Insert after loading indicator
+    const loadingEl = document.getElementById("wwgpt-loading");
+    if (loadingEl) {
+        loadingEl.insertAdjacentElement("afterend", notification);
+    } else {
+        tabHints.prepend(notification);
+    }
+
+    // Trigger reflow for animation
+    requestAnimationFrame(() => {
+        notification.classList.add("show");
+    });
+
+    setTimeout(() => {
+        notification.classList.remove("show");
+        setTimeout(() => notification.remove(), 500);
+    }, 5000);
 }
 
 // ---------------------------------------------------------------------------
