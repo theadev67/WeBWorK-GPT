@@ -7,7 +7,6 @@ import {
 } from "../modules/prompts.js";
 import { complete } from "../modules/llm-provider.js";
 import { typeset, enableClickToCopy, renderMarkdown } from "./math-utils.js";
-import { getConstants } from "./constants-client.js";
 
 export async function mountSidebar() {
     const data = await Settings.get();
@@ -70,9 +69,9 @@ export async function mountSidebar() {
         sidebar.style.setProperty("--sidebar-width", `${data.sidebarWidth}px`);
     }
 
-    await _setupEvents(sidebar);
-    await _checkUpdateNotification(sidebar);
-    await _loadCachedOrGenerate();
+    _setupEvents(sidebar);
+    _checkUpdateNotification(sidebar);
+    _loadCachedOrGenerate();
 }
 
 async function _checkUpdateNotification(sidebar) {
@@ -90,8 +89,6 @@ async function _checkUpdateNotification(sidebar) {
         if (lastDate === today) return;
     }
 
-    const { config } = await getConstants();
-
     const updateDiv = document.createElement("div");
     updateDiv.className = "wwgpt-update-notification";
     updateDiv.innerHTML = `
@@ -99,10 +96,7 @@ async function _checkUpdateNotification(sidebar) {
             <b>New Version Available! (${updateAvailable})</b>
             <p>Update to the latest version for better performance and fixes.</p>
             <div class="wwgpt-update-actions">
-                <a href="${
-                    config.spec_url.replace("manifest.json", "") +
-                    "docs/how-to-update"
-                }" target="_blank">How to update</a>
+                <a href="https://theadev67.github.io/WeBWorK-GPT/docs/how-to-update" target="_blank">How to update</a>
                 <button id="wwgpt-pause-update">Pause for today</button>
             </div>
         </div>
@@ -122,7 +116,7 @@ async function _checkUpdateNotification(sidebar) {
 // Event wiring
 // ---------------------------------------------------------------------------
 
-async function _setupEvents(sidebar) {
+function _setupEvents(sidebar) {
     // Toggle collapse — logo or toggle button, not card headers
     sidebar.querySelector(".wwgpt-logo").addEventListener("click", () => {
         sidebar.classList.toggle("wwgpt-collapsed");
@@ -197,7 +191,7 @@ async function _setupEvents(sidebar) {
 // Resize Logic
 // ---------------------------------------------------------------------------
 
-async function _setupResizer(sidebar) {
+function _setupResizer(sidebar) {
     const handle = sidebar.querySelector(".wwgpt-resize-handle");
     let isResizing = false;
 
@@ -243,12 +237,12 @@ async function _setupResizer(sidebar) {
 // ---------------------------------------------------------------------------
 
 async function _loadCachedOrGenerate() {
-    const { path, seed } = await _problemKey();
+    const { path, seed } = _problemKey();
     const cached = await Cache.get(path, seed);
     if (cached) {
-        await _displayHints(cached.hints, false);
-        await _displaySolution(cached.solution, false);
-        await _displayChatHistory(cached.chatHistory);
+        _displayHints(cached.hints, false);
+        _displaySolution(cached.solution, false);
+        _displayChatHistory(cached.chatHistory);
     } else {
         generateAll();
     }
@@ -292,7 +286,7 @@ async function generateAll(force = false) {
         return;
     }
 
-    const problem = await extractProblem();
+    const problem = extractProblem();
     if (!problem) return;
 
     const loadingEl = document.getElementById("wwgpt-loading");
@@ -319,26 +313,24 @@ async function generateAll(force = false) {
         // Hints — JSON mode, responseSchema enforced at the API level.
         // JSON.parse is safe here: the model physically cannot emit malformed JSON in this mode.
         loadingTextEl.textContent = "Generating hints...";
-        const hintsPrompt = await buildHintsPrompt(problem.text);
-
+        const hintsPrompt = buildHintsPrompt(problem.text);
         const hints = await _callWithRetry(async () => {
-            const body = [
-                { role: "system", content: hintsPrompt.system },
-                { role: "user", content: hintsPrompt.user },
-            ];
             const raw = await complete(
-                body,
+                [
+                    { role: "system", content: hintsPrompt.system },
+                    { role: "user", content: hintsPrompt.user },
+                ],
                 settings.llmConfig,
                 null, // no streaming — JSON streaming is not useful
                 "hint"
             );
             return JSON.parse(raw);
         });
-        await _displayHints(hints, false);
+        _displayHints(hints, false);
 
         // Solution — free-form markdown, no JSON schema
         loadingTextEl.textContent = "Writing solution...";
-        const solutionPrompt = await buildSolutionPrompt(problem.text);
+        const solutionPrompt = buildSolutionPrompt(problem.text);
         const solution = await _callWithRetry(() =>
             complete(
                 [
@@ -350,11 +342,11 @@ async function generateAll(force = false) {
                 "solution"
             )
         );
-        await _displaySolution(solution, false);
-        await _showSuccessNotification();
+        _displaySolution(solution, false);
+        _showSuccessNotification();
 
         // Persist — preserve existing chat history across regeneration
-        const { path, seed } = await _problemKey();
+        const { path, seed } = _problemKey();
         const prev = (await Cache.get(path, seed)) ?? { chatHistory: [] };
         await Cache.set(path, seed, {
             hints,
@@ -374,48 +366,46 @@ async function generateAll(force = false) {
 // Display helpers
 // ---------------------------------------------------------------------------
 
-async function _displayHints(hints, autoOpen = false) {
+function _displayHints(hints, autoOpen = false) {
     if (!hints) return;
     for (let i = 1; i <= 3; i++) {
         const card = document.getElementById(`wwgpt-hint${i}`);
         const body = card?.querySelector(".wwgpt-card-body");
         if (!body) continue;
-        body.innerHTML = await renderMarkdown(hints[`hint${i}`] ?? "");
+        body.innerHTML = renderMarkdown(hints[`hint${i}`] ?? "");
         if (autoOpen && i === 1) card.classList.add("open");
         typeset(body);
     }
 }
 
-async function _displaySolution(solution, autoOpen = false) {
+function _displaySolution(solution, autoOpen = false) {
     if (!solution) return;
     const card = document.getElementById("wwgpt-solution");
     const body = card?.querySelector(".wwgpt-card-body");
     if (!body) return;
-    body.innerHTML = await renderMarkdown(solution);
+    body.innerHTML = renderMarkdown(solution);
     if (autoOpen) card.classList.add("open");
     typeset(body);
 }
 
-async function _displayChatHistory(history) {
+function _displayChatHistory(history) {
     const log = document.getElementById("wwgpt-chat-log");
     log.innerHTML = "";
     if (!history) return;
-    for (const msg of history) {
-        await _appendMessage(msg.role, msg.content);
-    }
+    history.forEach((msg) => _appendMessage(msg.role, msg.content));
 }
 
-async function _appendMessage(role, content) {
+function _appendMessage(role, content) {
     const log = document.getElementById("wwgpt-chat-log");
     const msgDiv = document.createElement("div");
     msgDiv.className = `wwgpt-msg ${role}`;
-    msgDiv.innerHTML = await renderMarkdown(content);
+    msgDiv.innerHTML = renderMarkdown(content);
     log.appendChild(msgDiv);
     log.scrollTop = log.scrollHeight;
     typeset(msgDiv);
 }
 
-async function _showError(msg) {
+function _showError(msg) {
     const loadingEl = document.getElementById("wwgpt-loading");
     const errDiv = document.createElement("div");
     errDiv.className = "wwgpt-error";
@@ -424,7 +414,7 @@ async function _showError(msg) {
     setTimeout(() => errDiv.remove(), 10000);
 }
 
-async function _showSuccessNotification() {
+function _showSuccessNotification() {
     const tabHints = document.getElementById("wwgpt-tab-hints");
     if (!tabHints) return;
 
@@ -468,11 +458,11 @@ async function _sendChatMessage() {
     if (!text) return;
 
     const settings = await Settings.get();
-    const problem = await extractProblem();
-    const { path, seed } = await _problemKey();
+    const problem = extractProblem();
+    const { path, seed } = _problemKey();
     const cached = (await Cache.get(path, seed)) ?? { chatHistory: [] };
 
-    await _appendMessage("user", text);
+    _appendMessage("user", text);
     input.value = "";
 
     // Typing indicator
@@ -485,10 +475,7 @@ async function _sendChatMessage() {
     log.scrollTop = log.scrollHeight;
 
     const messages = [
-        {
-            role: "system",
-            content: await buildChatSystemPrompt(problem?.text ?? ""),
-        },
+        { role: "system", content: buildChatSystemPrompt(problem?.text ?? "") },
         ...cached.chatHistory,
         { role: "user", content: text },
     ];
@@ -498,14 +485,14 @@ async function _sendChatMessage() {
             complete(messages, settings.llmConfig, null, "chat")
         );
         document.getElementById("wwgpt-typing")?.remove();
-        await _appendMessage("assistant", reply);
+        _appendMessage("assistant", reply);
 
         cached.chatHistory.push({ role: "user", content: text });
         cached.chatHistory.push({ role: "assistant", content: reply });
         await Cache.set(path, seed, cached);
     } catch (err) {
         document.getElementById("wwgpt-typing")?.remove();
-        await _appendMessage("assistant", `⚠️ Error: ${err.message}`);
+        _appendMessage("assistant", `⚠️ Error: ${err.message}`);
     }
 }
 
@@ -513,10 +500,11 @@ async function _sendChatMessage() {
 // Utility
 // ---------------------------------------------------------------------------
 
-async function _problemKey() {
-    const { selectors } = await getConstants();
+function _problemKey() {
     return {
         path: window.location.pathname,
-        seed: document.querySelector(selectors.random_seed)?.value ?? "",
+        seed:
+            document.querySelector("input[name=effectiveSummarizedRandomSeed]")
+                ?.value ?? "",
     };
 }

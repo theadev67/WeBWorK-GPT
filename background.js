@@ -1,16 +1,8 @@
 import { complete } from "./modules/llm-provider.js";
-import {
-    registerConstantsListener,
-    getConstants,
-} from "./modules/constants-manager.js";
-import { registerConstantsProvider } from "./modules/constants-provider.js";
 
-registerConstantsListener();
-registerConstantsProvider(getConstants);
+const SPEC_URL = "https://theadev67.github.io/WeBWorK-GPT/manifest.json";
 
 async function checkVersion() {
-    const { config } = await getConstants();
-    const SPEC_URL = config.spec_url;
     const { lastCheckedAt, dismissedUpdateAt } = await chrome.storage.local.get(
         ["lastCheckedAt", "dismissedUpdateAt"]
     );
@@ -60,12 +52,11 @@ function isBehindByMinor(local, remote) {
 // Check on extension load (service worker wake up)
 checkVersion();
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
-        const { config } = await getConstants();
         chrome.storage.sync.set({ disclaimerAccepted: false });
         chrome.tabs.create({
-            url: chrome.runtime.getURL(config.settings_page),
+            url: chrome.runtime.getURL("pages/settings.html"),
         });
     }
 });

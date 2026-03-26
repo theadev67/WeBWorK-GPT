@@ -19,8 +19,7 @@
         "https://api.x.ai/*",
         "https://api.anthropic.com/*",
         "https://openrouter.ai/*",
-        "https://theadev67.github.io/*",
-        "https://raw.githubusercontent.com/theadev67/WeBWorK-GPT/*"
+        "https://theadev67.github.io/*"
     ],
 
     "background": {
@@ -64,8 +63,7 @@
                 "popup/*",
                 "modules/*",
                 "content/*",
-                "icons/*",
-                "constants.json"
+                "icons/*"
             ],
             "matches": [
                 "https://webwork.elearning.ubc.ca/*",

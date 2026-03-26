@@ -6,7 +6,6 @@
  * (registered as a MAIN-world content script) receives it and calls MathJax.
  */
 import { texToWebwork } from "../modules/tex-to-webwork.js";
-import { getConstants } from "./constants-client.js";
 
 let _typesetCounter = 0;
 
@@ -26,13 +25,14 @@ export function typeset(element) {
  * Click-to-copy for MathJax SVG math elements.
  */
 export function enableClickToCopy(element) {
-    element.addEventListener("click", async (e) => {
-        const { selectors } = await getConstants();
-        const mathContainer = e.target.closest(selectors.math_containers);
+    element.addEventListener("click", (e) => {
+        const mathContainer = e.target.closest(
+            "mjx-container, .MathJax, .wwgpt-math-wrapper"
+        );
         if (!mathContainer) return;
 
         let tex = "";
-        const wrapper = mathContainer.closest(selectors.math_wrapper);
+        const wrapper = mathContainer.closest(".wwgpt-math-wrapper");
         if (wrapper && wrapper.dataset.tex) {
             tex = wrapper.dataset.tex;
         }
@@ -48,7 +48,7 @@ export function enableClickToCopy(element) {
                 tex = script.textContent;
             } else {
                 const ann = mathContainer.querySelector(
-                    selectors.math_annotations
+                    "mjx-assistive-mml annotation, .MJX_Assistive_MathML annotation"
                 );
                 if (ann) tex = ann.textContent;
             }
@@ -80,18 +80,13 @@ export function enableClickToCopy(element) {
  * LaTeX \(...\) and \[...\] are stashed with null-byte placeholders BEFORE
  * HTML escaping so they survive untouched, then restored verbatim for MathJax.
  */
-export async function renderMarkdown(text) {
+export function renderMarkdown(text) {
     if (!text) return "";
-
-    const { regex: r } = await getConstants();
 
     // ── 1. Stash LaTeX ──────────────────────────────────────────────────────
     const stash = [];
     const _esc = (t) =>
-        t
-            .replace(new RegExp(r.amp, "g"), "&amp;")
-            .replace(new RegExp(r.quot, "g"), "&quot;")
-            .replace(new RegExp(r.apos, "g"), "&#39;");
+        t.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const ph = (math) => {
         stash.push(math);
         return `\x00${stash.length - 1}\x00`;
@@ -99,14 +94,14 @@ export async function renderMarkdown(text) {
 
     let s = text
         // 1a. Display Math: \[...\] or $$...$$
-        .replace(new RegExp(r.display_math_1, "g"), (_, m) =>
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_, m) =>
             ph(
                 `<div class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
                 )}"><script type="math/tex; mode=display">${m}</script></div>`
             )
         )
-        .replace(new RegExp(r.display_math_2, "g"), (_, m) =>
+        .replace(/\$\$([\s\S]*?)\$\$/g, (_, m) =>
             ph(
                 `<div class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
@@ -116,7 +111,7 @@ export async function renderMarkdown(text) {
 
         // 1b. Special fallback for [ ... ] which is a common LLM near-miss for display math.
         // Triggered only if it contains a backslash (indicating LaTeX).
-        .replace(new RegExp(r.display_math_fallback, "g"), (_, m) =>
+        .replace(/(?:\n|^)\[([\s\S]*?\\+[\s\S]*?)\](?:\n|$)/g, (_, m) =>
             ph(
                 `\n<div class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
@@ -125,14 +120,14 @@ export async function renderMarkdown(text) {
         )
 
         // 1c. Inline Math: \(...\) or $...$
-        .replace(new RegExp(r.inline_math_1, "g"), (_, m) =>
+        .replace(/\\\((([\s\S])*?)\\\)/g, (_, m) =>
             ph(
                 `<span class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
                 )}"><script type="math/tex">${m}</script></span>`
             )
         )
-        .replace(new RegExp(r.inline_math_2, "g"), (_, m) =>
+        .replace(/\$([^\$\n]+)\$/g, (_, m) =>
             ph(
                 `<span class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
@@ -141,7 +136,7 @@ export async function renderMarkdown(text) {
         )
 
         // 1d. Special fallback for ( ... ) if it contains a backslash and looks like math
-        .replace(new RegExp(r.inline_math_fallback, "g"), (_, m) =>
+        .replace(/\(([\s\S]*?\\+[\s\S]*?)\)/g, (_, m) =>
             ph(
                 `<span class="wwgpt-math-wrapper" data-tex="${_esc(
                     m
@@ -150,18 +145,15 @@ export async function renderMarkdown(text) {
         );
 
     // ── 2. HTML-escape ───────────────────────────────────────────────────────
-    s = s
-        .replace(new RegExp(r.amp, "g"), "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+    s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     // ── 3. Inline Markdown ───────────────────────────────────────────────────
     s = s
-        .replace(new RegExp(r.markdown_bold, "g"), "<strong>$1</strong>")
-        .replace(new RegExp(r.markdown_italic, "g"), "<em>$1</em>")
-        .replace(new RegExp(r.markdown_code, "g"), "<code>$1</code>")
-        .replace(new RegExp(r.markdown_h4, "gm"), "<h4>$1</h4>")
-        .replace(new RegExp(r.markdown_h3, "gm"), "<h3>$1</h3>");
+        .replace(/\*\*([^*\x00]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*\n\x00]+)\*/g, "<em>$1</em>")
+        .replace(/`([^`\x00]+)`/g, "<code>$1</code>")
+        .replace(/^#{3}\s+(.+)$/gm, "<h4>$1</h4>")
+        .replace(/^#{2}\s+(.+)$/gm, "<h3>$1</h3>");
 
     // ── 4. Block structure ───────────────────────────────────────────────────
     const lines = s.split("\n");
@@ -179,24 +171,21 @@ export async function renderMarkdown(text) {
         const line = raw.trimEnd();
         if (!line) {
             flushPara();
-        } else if (new RegExp(r.is_heading).test(line)) {
+        } else if (/^<h[34]/.test(line)) {
             flushPara();
             out.push(line);
-        } else if (new RegExp(r.is_step).test(line)) {
+        } else if (/^\d+\.\s/.test(line)) {
             flushPara();
             out.push(
                 `<p class="wwgpt-step">${line.replace(
-                    new RegExp(r.step_replacement),
+                    /^(\d+\.\s)/,
                     "<strong>$1</strong>"
                 )}</p>`
             );
-        } else if (new RegExp(r.is_bullet).test(line)) {
+        } else if (/^[-*•]\s/.test(line)) {
             flushPara();
             out.push(
-                `<p class="wwgpt-bullet">${line.replace(
-                    new RegExp(r.bullet_replacement),
-                    "• "
-                )}</p>`
+                `<p class="wwgpt-bullet">${line.replace(/^[-*•]\s/, "• ")}</p>`
             );
         } else {
             para.push(line);
