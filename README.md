@@ -1,6 +1,8 @@
 # WeBWorK-GPT
 
-A Chrome extension that provides AI-generated assistance for WeBWorK problems at UBC. It offers progressive hints, step-by-step solutions, and an interactive math chat window.
+A Chrome extension that provides AI-generated assistance for WeBWorK problems. It offers progressive hints, step-by-step solutions, and an interactive math chat window.
+
+> **Note**: Currently only support UBC's WeBWorK instance (Pull requests welcomed).
 
 ## Features
 
