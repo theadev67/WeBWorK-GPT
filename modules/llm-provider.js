@@ -18,10 +18,10 @@ export const GEMINI_MODELS = [
     // Lighter fallback: thinking=true, 10 RPM / 20 RPD
     { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
     // Last resort: no thinking, but 30 RPM / 14.4K RPD — virtually unlimited for personal use
-    // { id: "gemma-3-27b-it", label: "Gemma 3 27B (Gemma has higher rate limit)" },
-    // { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
-    // { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
-    // { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
+    { id: "gemma-3-27b-it", label: "Gemma 3 27B (Highest Rate Limit ✨)" },
+    { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
+    { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
+    { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
 ];
 
 export const PROVIDER_MODELS = {
@@ -180,23 +180,37 @@ async function _callGemini(messages, config, onChunk, mode) {
         : "generateContent";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:${endpoint}`;
 
+    const body = {
+        contents,
+        generationConfig,
+    };
+
+    // If using Gemma, some API configurations don't support systemInstruction.
+    // Also, per user request, chat does not really need it.
+    if (systemMsg && !isGemma) {
+        body.systemInstruction = {
+            parts: [{ text: systemMsg.content }],
+        };
+    } else if (systemMsg && isGemma) {
+        // Gemma models: prepend the instructions to the first user message.
+        // This ensures the model knows it's a math tutor and has the problem context
+        // even if the API endpoint or configuration doesn't support a dedicated system field.
+        const firstUserIndex = contents.findIndex((c) => c.role === "user");
+        if (firstUserIndex !== -1) {
+            const firstPart = contents[firstUserIndex].parts[0];
+            if (firstPart && firstPart.text) {
+                firstPart.text = `${systemMsg.content}\n\n---\n\n${firstPart.text}`;
+            }
+        }
+    }
+
     const res = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "x-goog-api-key": config.apiKey,
         },
-        body: JSON.stringify({
-            ...(systemMsg
-                ? {
-                      systemInstruction: {
-                          parts: [{ text: systemMsg.content }],
-                      },
-                  }
-                : {}),
-            contents,
-            generationConfig,
-        }),
+        body: JSON.stringify(body),
     });
 
     if (!res.ok) {

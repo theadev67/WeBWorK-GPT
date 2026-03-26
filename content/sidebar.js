@@ -482,7 +482,12 @@ async function _sendChatMessage() {
 
     try {
         const reply = await _callWithRetry(() =>
-            complete(messages, settings.llmConfig, null, "chat")
+            complete(
+                messages,
+                { ...settings.llmConfig, model: "gemma-3-27b-it" },
+                null,
+                "chat"
+            )
         );
         document.getElementById("wwgpt-typing")?.remove();
         _appendMessage("assistant", reply);
