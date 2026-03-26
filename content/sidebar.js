@@ -297,7 +297,7 @@ async function generateAll(force = false) {
         if (loadingTextEl)
             loadingTextEl.textContent =
                 "Taking longer than usual... try refreshing if stuck.";
-    }, 20000);
+    }, 40000);
 
     // Clear previous output
     for (let i = 1; i <= 3; i++) {

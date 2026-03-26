@@ -18,10 +18,10 @@ export const GEMINI_MODELS = [
     // Lighter fallback: thinking=true, 10 RPM / 20 RPD
     { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
     // Last resort: no thinking, but 30 RPM / 14.4K RPD — virtually unlimited for personal use
-    { id: "gemma-3-27b-it", label: "Gemma 3 27B (Gemma has higher rate limit)" },
-    { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
-    { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
-    { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
+    // { id: "gemma-3-27b-it", label: "Gemma 3 27B (Gemma has higher rate limit)" },
+    // { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
+    // { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
+    // { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
 ];
 
 export const PROVIDER_MODELS = {
