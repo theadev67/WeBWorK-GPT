@@ -1,9 +1,11 @@
 import { mountSidebar } from "./sidebar.js";
 import { Settings } from "../modules/storage.js";
+import { getConstants } from "./constants-client.js";
 
 async function init() {
+    const { selectors } = await getConstants();
     // Only activate on WeBWorK problem pages
-    if (!document.querySelector("#output_problem_body")) return;
+    if (!document.querySelector(selectors.problem_body)) return;
 
     const data = await Settings.get();
     if (data.enabled === false) return; // respect user toggle

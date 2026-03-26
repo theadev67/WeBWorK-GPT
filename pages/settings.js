@@ -1,5 +1,5 @@
-import { PROVIDER_MODELS } from "../modules/llm-provider.js";
 import { Settings } from "../modules/storage.js";
+import { getConstants } from "../content/constants-client.js";
 
 const providerSelect = document.getElementById("provider-select");
 const modelSelect = document.getElementById("model-select");
@@ -12,8 +12,12 @@ const saveButton = document.getElementById("save-button");
 const statusMsg = document.getElementById("status-msg");
 
 // Populate models based on provider
-function updateModelList(provider) {
-    const models = PROVIDER_MODELS[provider] || [];
+async function updateModelList(provider) {
+    const { config } = await getConstants();
+    const providerModels = {
+        gemini: config.gemini_models,
+    };
+    const models = providerModels[provider] || [];
     modelSelect.innerHTML = "";
 
     models.forEach((m) => {
@@ -46,7 +50,7 @@ async function loadSettings() {
         providerSelect.value = config.provider;
     }
 
-    updateModelList(providerSelect.value);
+    await updateModelList(providerSelect.value);
 
     if (config.model) {
         // Check if it's one of the predefined models
@@ -109,8 +113,9 @@ async function saveSettings() {
 }
 
 // Listeners
-providerSelect.addEventListener("change", (e) =>
-    updateModelList(e.target.value)
+providerSelect.addEventListener(
+    "change",
+    async (e) => await updateModelList(e.target.value)
 );
 modelSelect.addEventListener("change", handleModelChange);
 saveButton.addEventListener("click", saveSettings);

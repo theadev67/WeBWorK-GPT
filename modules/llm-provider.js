@@ -2,31 +2,21 @@
 // Model list — ordered best → least suitable for math (see rate limit notes)
 // ---------------------------------------------------------------------------
 
-export const GEMINI_MODELS = [
-    // Primary workhorse: thinking=true, 500 RPD, 15 RPM
-    {
-        id: "gemini-3.1-flash-lite-preview",
-        label: "Gemini 3.1 Flash Lite (Latest, Fast)",
-    },
-    // Step up for hard problems: thinking=true, 20 RPD
-    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (Latest, Best)" },
-    // Fallback: well-proven math, thinking=true, 5 RPM / 20 RPD
-    {
-        id: "gemini-2.5-flash",
-        label: "Gemini 2.5 Flash (Balanced, Recommended ⭐)",
-    },
-    // Lighter fallback: thinking=true, 10 RPM / 20 RPD
-    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
-    // Last resort: no thinking, but 30 RPM / 14.4K RPD — virtually unlimited for personal use
-    { id: "gemma-3-27b-it", label: "Gemma 3 27B (Gemma has higher rate limit)" },
-    { id: "gemma-3-12b-it", label: "Gemma 3 12B" },
-    { id: "gemma-3-4b-it", label: "Gemma 3 4B" },
-    { id: "gemma-3-1b-it", label: "Gemma 3 1B" },
-];
+// Models and config are now fetched from constants via getConstants().
+// See constants.json for the source of truth.
+import { getConstants } from "./constants-provider.js";
 
-export const PROVIDER_MODELS = {
-    gemini: GEMINI_MODELS,
-};
+// Note: llm-provider.js is shared. In content scripts it uses the client.
+// In the background service worker, it will be called via complete(),
+// which is already async.
+
+async function getLlmConfig() {
+    const { config } = await getConstants();
+    return {
+        models: config.gemini_models,
+        modeConfig: config.mode_config,
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Hint JSON schema — enforced at the API level via responseSchema
@@ -47,11 +37,7 @@ const HINT_SCHEMA = {
 // thinkingBudget: 0 = off (fast, good for hints), higher = more reasoning depth
 // ---------------------------------------------------------------------------
 
-const MODE_CONFIG = {
-    hint: { maxOutputTokens: 1024, thinkingBudget: 0 },
-    solution: { maxOutputTokens: 4096, thinkingBudget: 1024 },
-    chat: { maxOutputTokens: 2048, thinkingBudget: 256 },
-};
+// Moved to getLlmConfig()
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -93,6 +79,11 @@ function _proxyToBackground(messages, config, onChunk, mode) {
             const port = chrome.runtime.connect({ name: "llm-stream" });
 
             port.onMessage.addListener((msg) => {
+                // This listener is in the content script, receiving messages from the background script.
+                // The instruction "Add logging to background.js for port messages" refers to the background script's side.
+                // The provided snippet for `const { messages, config, mode } = msg;` is incorrect here,
+                // as `msg` from the background script will contain `type` and `data` (e.g., chunk, done, error).
+                // The `async` keyword is also not needed here.
                 if (msg.type === "chunk") {
                     onChunk?.(msg.data);
                 } else if (msg.type === "done") {
@@ -121,8 +112,10 @@ function _proxyToBackground(messages, config, onChunk, mode) {
 // ---------------------------------------------------------------------------
 
 async function _callGemini(messages, config, onChunk, mode) {
-    const { maxOutputTokens, thinkingBudget } =
-        MODE_CONFIG[mode] ?? MODE_CONFIG.chat;
+    const { modeConfig } = await getLlmConfig();
+
+    const { maxOutputTokens, thinkingBudget } = modeConfig?.[mode] ??
+        modeConfig?.chat ?? { maxOutputTokens: 2048, thinkingBudget: 0 };
     const isGemma = config.model.startsWith("gemma-");
     const isHint = mode === "hint";
 
@@ -147,7 +140,10 @@ async function _callGemini(messages, config, onChunk, mode) {
                                     .split(":")[1]
                                     .split(";")[0];
                                 return {
-                                    inlineData: { data: base64Data, mimeType },
+                                    inline_data: {
+                                        data: base64Data,
+                                        mime_type: mimeType,
+                                    },
                                 };
                             }
                             return null;
@@ -161,18 +157,20 @@ async function _callGemini(messages, config, onChunk, mode) {
             };
         });
 
-    const generationConfig = {
-        maxOutputTokens,
+    const generation_config = {
+        max_output_tokens: maxOutputTokens,
         temperature: 0.3,
         // Hint mode: enforce JSON schema at the API level (no prompt engineering needed)
         ...(isHint
             ? {
-                  responseMimeType: "application/json",
-                  responseSchema: HINT_SCHEMA,
+                  response_mime_type: "application/json",
+                  response_schema: HINT_SCHEMA,
               }
             : {}),
-        // Gemma models don't support thinkingConfig — skip it entirely for them
-        ...(!isGemma ? { thinkingConfig: { thinkingBudget } } : {}),
+        // Gemma models don't support thinking_config — skip it entirely for them
+        ...(!isGemma
+            ? { thinking_config: { include_thoughts: thinkingBudget > 0 } }
+            : {}),
     };
 
     const endpoint = streaming
@@ -187,20 +185,40 @@ async function _callGemini(messages, config, onChunk, mode) {
             "x-goog-api-key": config.apiKey,
         },
         body: JSON.stringify({
-            ...(systemMsg
+            ...(systemMsg?.content
                 ? {
-                      systemInstruction: {
+                      system_instruction: {
                           parts: [{ text: systemMsg.content }],
                       },
                   }
                 : {}),
             contents,
-            generationConfig,
+            generation_config,
         }),
     });
 
+    console.log(
+        "[WeBWorK-GPT] fetch body:",
+        JSON.stringify(
+            {
+                ...(systemMsg?.content
+                    ? {
+                          system_instruction: {
+                              parts: [{ text: systemMsg.content }],
+                          },
+                      }
+                    : {}),
+                contents,
+                generation_config,
+            },
+            null,
+            2
+        )
+    );
+
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        console.error("[WeBWorK-GPT] Gemini API error payload:", err);
         throw new Error(
             `Gemini API error: ${res.status} ${err.error?.message || ""}`
         );

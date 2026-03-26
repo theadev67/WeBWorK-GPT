@@ -1,0 +1,86 @@
+{
+    "schema_version": 1,
+    "selectors": {
+        "problem_body": "#output_problem_body",
+        "problem_noise": "input[type=submit], button, .attemptResults, .problem-grader-hint",
+        "images": "img",
+        "answer_blanks": "input[type=text], input[type=number]",
+        "random_seed": "input[name=effectiveSummarizedRandomSeed]",
+        "math_containers": "mjx-container, .MathJax, .wwgpt-math-wrapper",
+        "math_wrapper": ".wwgpt-math-wrapper",
+        "math_annotations": "mjx-assistive-mml annotation, .MJX_Assistive_MathML annotation"
+    },
+    "regex": {
+        "whitespace": "\\s+",
+        "display_math_1": "\\\\\\[([\\s\\S]*?)\\\\\\]",
+        "display_math_2": "\\$\\$([\\s\\S]*?)\\$\\$",
+        "display_math_fallback": "(?:\\n|^)\\[([\\s\\S]*?\\\\+[\\s\\S]*?)\\](?:\\n|$)",
+        "inline_math_1": "\\\\\\((([\\s\\S])*?)\\\\\\)",
+        "inline_math_2": "\\$([^\\$\\n]+)\\$",
+        "inline_math_fallback": "\\(([\\s\\S]*?\\\\+[\\s\\S]*?)\\)",
+        "amp": "&",
+        "quot": "\"",
+        "apos": "'",
+        "markdown_bold": "\\*\\*([^*\\x00]+)\\*\\*",
+        "markdown_italic": "\\*([^*\\n\\x00]+)\\*",
+        "markdown_code": "`([^`\\x00]+)`",
+        "markdown_h4": "^#{3}\\s+(.+)$",
+        "markdown_h3": "^#{2}\\s+(.+)$",
+        "is_heading": "^<h[34]",
+        "is_step": "^\\d+\\.\\s",
+        "step_replacement": "^(\\d+\\.\\s)",
+        "is_bullet": "^[-*•]\\s",
+        "bullet_replacement": "^[-*•]\\s"
+    },
+    "prompts": {
+        "math_system": "You are a math tutor assistant embedded in WeBWorK, a university mathematics homework system. You will be given a math problem that may contain LaTeX equations written in \\( ... \\) for inline math and \\[ ... \\] for display math.\n\nYour outputs will be rendered with MathJax in a browser sidebar. Always write math using these conventions:\n- Inline math: \\( expression \\)\n- Display math: \\[ expression \\]\n- ALL equations, matrices, and variables MUST be in LaTeX. Never use plain text substitutes.\n  Example: \\( A = \\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix} \\)\n- Break long equations across multiple lines at each equals sign when appropriate.\n\nTone and length rules:\n- Be concise. No padding, preamble, or summaries.\n- For hints: 2-4 sentences each. Point to the approach, never compute the final answer.\n- For solutions: numbered step-by-step. Each step is 1-3 lines. Show key algebra, skip trivial arithmetic. Always end with the final answer in a \\boxed{} macro.\n- For chat: conversational and direct. Match the depth of the user's question.",
+        "hints_user": "Here is the WeBWorK problem:\n\n---\n{{problemText}}\n---\n\nGenerate exactly 3 progressive hints following these guidelines:\n\n- hint1: Identify the relevant theorem, technique, or concept only. Give no steps and no computation.\n- hint2: Describe the first concrete setup or step without computing it. Mention what to look for or configure.\n- hint3: Give a more direct nudge — describe the key algebraic or logical move that unlocks the problem. Still do not give the final answer.\n\nEach hint must be 2-4 sentences. No bullet points. No headers. Plain prose with LaTeX where needed. No sign-off phrases like \"Good luck!\".",
+        "solution_user": "Here is the WeBWorK problem:\n\n---\n{{problemText}}\n---\n\nWrite a complete, worked solution.\n\nRules:\n- Start immediately with \"**Step 1:**\" — no introduction.\n- Each step is 1-4 lines. Show important algebraic transformations explicitly.\n- End with \"**Answer:** \\( ... \\)\" or a display block for the final answer, wrapped in \\boxed{}.\n- No conclusion paragraph after the final answer.\n- Target 150-350 words. Do not pad.",
+        "chat_system": "{{systemPrompt}}\n\nThe student is working on the following WeBWorK problem:\n\n---\n{{problemText}}\n---\n\nAnswer their questions directly and concisely. If they ask for the full answer, give it — they have already seen the hints. Do not be paternalistic. If their question is unrelated to math, politely redirect."
+    },
+    "config": {
+        "gemini_models": [
+            {
+                "id": "gemini-3.1-flash-lite-preview",
+                "label": "Gemini 3.1 Flash Lite (Latest, Fast)"
+            },
+            {
+                "id": "gemini-3-flash-preview",
+                "label": "Gemini 3 Flash (Latest, Best)"
+            },
+            {
+                "id": "gemini-2.5-flash",
+                "label": "Gemini 2.5 Flash (Balanced, Recommended ⭐)"
+            },
+            {
+                "id": "gemini-2.5-flash-lite",
+                "label": "Gemini 2.5 Flash-Lite"
+            },
+            {
+                "id": "gemma-3-27b-it",
+                "label": "Gemma 3 27B (Gemma has higher rate limit)"
+            },
+            {
+                "id": "gemma-3-12b-it",
+                "label": "Gemma 3 12B"
+            },
+            {
+                "id": "gemma-3-4b-it",
+                "label": "Gemma 3 4B"
+            },
+            {
+                "id": "gemma-3-1b-it",
+                "label": "Gemma 3 1B"
+            }
+        ],
+        "mode_config": {
+            "hint": { "maxOutputTokens": 1024, "thinkingBudget": 0 },
+            "solution": { "maxOutputTokens": 4096, "thinkingBudget": 1024 },
+            "chat": { "maxOutputTokens": 2048, "thinkingBudget": 256 }
+        },
+        "spec_url": "https://theadev67.github.io/WeBWorK-GPT/manifest.json",
+        "settings_page": "pages/settings.html",
+        "remote_url": "https://raw.githubusercontent.com/theadev67/WeBWorK-GPT/main/constants.json",
+        "ttl_ms": 3600000
+    }
+}
