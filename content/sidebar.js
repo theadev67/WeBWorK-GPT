@@ -15,6 +15,8 @@ export async function mountSidebar() {
     const sidebar = document.createElement("div");
     sidebar.id = "wwgpt-sidebar";
     sidebar.innerHTML = `
+        <div class="wwgpt-resize-handle"></div>
+        <div class="wwgpt-collapsed-overlay"></div>
         <div class="wwgpt-header">
             <span class="wwgpt-logo">🤖 WeBWorK GPT</span>
             <div class="wwgpt-header-actions">
@@ -61,6 +63,12 @@ export async function mountSidebar() {
     `;
 
     document.body.appendChild(sidebar);
+
+    // Set initial width
+    if (data.sidebarWidth) {
+        sidebar.style.setProperty("--sidebar-width", `${data.sidebarWidth}px`);
+    }
+
     _setupEvents(sidebar);
     _loadCachedOrGenerate();
 }
@@ -79,6 +87,14 @@ function _setupEvents(sidebar) {
         .addEventListener("click", (e) => {
             e.stopPropagation();
             sidebar.classList.toggle("wwgpt-collapsed");
+        });
+
+    // Expand when clicking anywhere on collapsed sidebar
+    sidebar
+        .querySelector(".wwgpt-collapsed-overlay")
+        .addEventListener("click", (e) => {
+            e.stopPropagation();
+            sidebar.classList.remove("wwgpt-collapsed");
         });
 
     // Tab switching
@@ -128,7 +144,53 @@ function _setupEvents(sidebar) {
         }
     });
 
+    _setupResizer(sidebar);
     enableClickToCopy(sidebar);
+}
+
+// ---------------------------------------------------------------------------
+// Resize Logic
+// ---------------------------------------------------------------------------
+
+function _setupResizer(sidebar) {
+    const handle = sidebar.querySelector(".wwgpt-resize-handle");
+    let isResizing = false;
+
+    handle.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        sidebar.style.transition = "none"; // disable transition during drag
+    });
+
+    window.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+
+        // WebWork is fixed at the right
+        // The width is (window width) - (mouse X)
+        let newWidth = window.innerWidth - e.clientX;
+
+        // Constrain width
+        if (newWidth < 300) newWidth = 300;
+        if (newWidth > 800) newWidth = 800;
+
+        sidebar.style.setProperty("--sidebar-width", `${newWidth}px`);
+    });
+
+    window.addEventListener("mouseup", async () => {
+        if (!isResizing) return;
+        isResizing = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        sidebar.style.transition = ""; // restore transition
+
+        const currentWidth = parseInt(
+            getComputedStyle(sidebar).getPropertyValue("--sidebar-width")
+        );
+        const data = await Settings.get();
+        data.sidebarWidth = currentWidth;
+        await Settings.set(data);
+    });
 }
 
 // ---------------------------------------------------------------------------

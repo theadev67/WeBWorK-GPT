@@ -3,7 +3,7 @@ export const Settings = {
     async get() {
         return new Promise((r) =>
             chrome.storage.sync.get(
-                ["llmConfig", "enabled", "disclaimerAccepted"],
+                ["llmConfig", "enabled", "disclaimerAccepted", "sidebarWidth"],
                 r
             )
         );

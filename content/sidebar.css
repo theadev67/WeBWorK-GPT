@@ -1,9 +1,10 @@
 /* ===== Sidebar Shell ===== */
 #wwgpt-sidebar {
+    --sidebar-width: 380px;
     position: fixed;
     top: 60px;
     right: 0;
-    width: 380px;
+    width: var(--sidebar-width);
     height: calc(100vh - 80px);
     background: #ffffff;
     border-left: 1px solid #e2e8f0;
@@ -20,7 +21,48 @@
 }
 
 #wwgpt-sidebar.wwgpt-collapsed {
-    transform: translateX(352px); /* width - 28px tab */
+    transform: translateX(calc(var(--sidebar-width) - 28px));
+}
+
+#wwgpt-sidebar.wwgpt-collapsed:hover {
+    transform: translateX(calc(var(--sidebar-width) - 32px));
+}
+
+/* ===== Resize Handle ===== */
+.wwgpt-resize-handle {
+    position: absolute;
+    left: -2px;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 100001;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.wwgpt-resize-handle:hover {
+    background: rgba(30, 64, 175, 0.3);
+}
+
+#wwgpt-sidebar.wwgpt-collapsed .wwgpt-resize-handle {
+    display: none;
+}
+
+/* ===== Collapsed Overlay ===== */
+.wwgpt-collapsed-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100002;
+    cursor: pointer;
+    display: none;
+}
+
+#wwgpt-sidebar.wwgpt-collapsed .wwgpt-collapsed-overlay {
+    display: block;
 }
 
 /* ===== Header ===== */
