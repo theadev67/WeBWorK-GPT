@@ -70,7 +70,46 @@ export async function mountSidebar() {
     }
 
     _setupEvents(sidebar);
+    _checkUpdateNotification(sidebar);
     _loadCachedOrGenerate();
+}
+
+async function _checkUpdateNotification(sidebar) {
+    const { updateAvailable, dismissedUpdateAt } =
+        await chrome.storage.local.get([
+            "updateAvailable",
+            "dismissedUpdateAt",
+        ]);
+
+    if (!updateAvailable) return;
+
+    if (dismissedUpdateAt) {
+        const lastDate = new Date(dismissedUpdateAt).toDateString();
+        const today = new Date().toDateString();
+        if (lastDate === today) return;
+    }
+
+    const updateDiv = document.createElement("div");
+    updateDiv.className = "wwgpt-update-notification";
+    updateDiv.innerHTML = `
+        <div class="wwgpt-update-content">
+            <b>New Version Available! (${updateAvailable})</b>
+            <p>Update to the latest version for better performance and fixes.</p>
+            <div class="wwgpt-update-actions">
+                <a href="https://theadev67.github.io/WeBWorK-GPT/docs/how-to-update" target="_blank">How to update</a>
+                <button id="wwgpt-pause-update">Pause for today</button>
+            </div>
+        </div>
+    `;
+
+    sidebar.querySelector(".wwgpt-header").after(updateDiv);
+
+    updateDiv
+        .querySelector("#wwgpt-pause-update")
+        .addEventListener("click", async () => {
+            await chrome.storage.local.set({ dismissedUpdateAt: Date.now() });
+            updateDiv.remove();
+        });
 }
 
 // ---------------------------------------------------------------------------
