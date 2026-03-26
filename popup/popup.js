@@ -16,7 +16,7 @@ openSettings.addEventListener("click", () => {
     if (chrome.runtime.openOptionsPage) {
         chrome.runtime.openOptionsPage();
     } else {
-        window.open(chrome.runtime.getURL("pages/disclaimer.html"));
+        window.open(chrome.runtime.getURL("pages/settings.html"));
     }
 });
 

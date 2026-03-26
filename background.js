@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
         chrome.storage.sync.set({ disclaimerAccepted: false });
         chrome.tabs.create({
-            url: chrome.runtime.getURL("pages/disclaimer.html"),
+            url: chrome.runtime.getURL("pages/settings.html"),
         });
     }
 });

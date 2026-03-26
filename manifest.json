@@ -51,7 +51,7 @@
     ],
 
     "options_ui": {
-        "page": "pages/disclaimer.html",
+        "page": "pages/settings.html",
         "open_in_tab": true
     },
 
