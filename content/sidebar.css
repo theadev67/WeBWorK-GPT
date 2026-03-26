@@ -410,3 +410,46 @@
 .wwgpt-success-icon {
     font-size: 16px;
 }
+
+/* ===== Click-to-Copy Hint ===== */
+.wwgpt-math-wrapper {
+    display: inline-block;
+    position: relative;
+    cursor: copy;
+}
+
+.wwgpt-copy-hint {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1000;
+    white-space: nowrap;
+    animation: wwgpt-fade-in-out 3s forwards;
+}
+
+@keyframes wwgpt-fade-in-out {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, 5px);
+    }
+    15% {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    85% {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -5px);
+    }
+}

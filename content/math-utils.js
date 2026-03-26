@@ -5,6 +5,7 @@
  * Instead we dispatch a CustomEvent on the shared DOM; typeset-bridge.js
  * (registered as a MAIN-world content script) receives it and calls MathJax.
  */
+import { texToWebwork } from "../modules/tex-to-webwork.js";
 
 let _typesetCounter = 0;
 
@@ -25,31 +26,49 @@ export function typeset(element) {
  */
 export function enableClickToCopy(element) {
     element.addEventListener("click", (e) => {
-        const mathContainer = e.target.closest("mjx-container, .MathJax");
+        const mathContainer = e.target.closest(
+            "mjx-container, .MathJax, .wwgpt-math-wrapper"
+        );
         if (!mathContainer) return;
 
         let tex = "";
-        const script = mathContainer.previousElementSibling;
-        if (
-            script &&
-            script.tagName === "SCRIPT" &&
-            script.type.includes("math/tex")
-        ) {
-            tex = script.textContent;
-        } else {
-            const ann = mathContainer.querySelector(
-                "mjx-assistive-mml annotation, .MJX_Assistive_MathML annotation"
-            );
-            if (ann) tex = ann.textContent;
+        const wrapper = mathContainer.closest(".wwgpt-math-wrapper");
+        if (wrapper && wrapper.dataset.tex) {
+            tex = wrapper.dataset.tex;
+        }
+
+        if (!tex) {
+            // Fallback for native WeBWorK or MathJax 2 script tags
+            const script = mathContainer.previousElementSibling;
+            if (
+                script &&
+                script.tagName === "SCRIPT" &&
+                script.type.includes("math/tex")
+            ) {
+                tex = script.textContent;
+            } else {
+                const ann = mathContainer.querySelector(
+                    "mjx-assistive-mml annotation, .MJX_Assistive_MathML annotation"
+                );
+                if (ann) tex = ann.textContent;
+            }
         }
 
         if (tex) {
-            navigator.clipboard.writeText(tex).then(() => {
+            const cleanTex = texToWebwork(tex);
+            navigator.clipboard.writeText(cleanTex).then(() => {
+                const target = wrapper || mathContainer;
+                const hint = document.createElement("span");
+                hint.className = "wwgpt-copy-hint";
+                hint.textContent = "Copied";
+                target.appendChild(hint);
+
                 const was = mathContainer.style.background;
                 mathContainer.style.background = "#d1fae5";
                 setTimeout(() => {
                     mathContainer.style.background = was;
-                }, 300);
+                    hint.remove();
+                }, 2000);
             });
         }
     });
@@ -66,6 +85,8 @@ export function renderMarkdown(text) {
 
     // ── 1. Stash LaTeX ──────────────────────────────────────────────────────
     const stash = [];
+    const _esc = (t) =>
+        t.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const ph = (math) => {
         stash.push(math);
         return `\x00${stash.length - 1}\x00`;
@@ -74,29 +95,53 @@ export function renderMarkdown(text) {
     let s = text
         // 1a. Display Math: \[...\] or $$...$$
         .replace(/\\\[([\s\S]*?)\\\]/g, (_, m) =>
-            ph(`<script type="math/tex; mode=display">${m}</script>`)
+            ph(
+                `<div class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex; mode=display">${m}</script></div>`
+            )
         )
         .replace(/\$\$([\s\S]*?)\$\$/g, (_, m) =>
-            ph(`<script type="math/tex; mode=display">${m}</script>`)
+            ph(
+                `<div class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex; mode=display">${m}</script></div>`
+            )
         )
 
         // 1b. Special fallback for [ ... ] which is a common LLM near-miss for display math.
         // Triggered only if it contains a backslash (indicating LaTeX).
         .replace(/(?:\n|^)\[([\s\S]*?\\+[\s\S]*?)\](?:\n|$)/g, (_, m) =>
-            ph(`\n<script type="math/tex; mode=display">${m}</script>\n`)
+            ph(
+                `\n<div class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex; mode=display">${m}</script></div>\n`
+            )
         )
 
         // 1c. Inline Math: \(...\) or $...$
         .replace(/\\\((([\s\S])*?)\\\)/g, (_, m) =>
-            ph(`<script type="math/tex">${m}</script>`)
+            ph(
+                `<span class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex">${m}</script></span>`
+            )
         )
         .replace(/\$([^\$\n]+)\$/g, (_, m) =>
-            ph(`<script type="math/tex">${m}</script>`)
+            ph(
+                `<span class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex">${m}</script></span>`
+            )
         )
 
         // 1d. Special fallback for ( ... ) if it contains a backslash and looks like math
         .replace(/\(([\s\S]*?\\+[\s\S]*?)\)/g, (_, m) =>
-            ph(`<script type="math/tex">${m}</script>`)
+            ph(
+                `<span class="wwgpt-math-wrapper" data-tex="${_esc(
+                    m
+                )}"><script type="math/tex">${m}</script></span>`
+            )
         );
 
     // ── 2. HTML-escape ───────────────────────────────────────────────────────
