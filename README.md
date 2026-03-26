@@ -30,7 +30,7 @@ Upon installation, the disclaimer and options page will open automatically. You 
 
 ## Disclaimer
 
-WebWork GPT is an independent project and is **not affiliated with, endorsed by, or associated with the University of British Columbia (UBC) or the WeBWorK project**. This tool is intended solely for **self-study and revision purposes**. It is NOT designed to complete assignments for you. Users bear full responsibility for its use and must adhere to their institution's academic integrity policies. Misuse of this tool may have serious academic consequences.
+WebWork-GPT is an independent project and is **not affiliated with, endorsed by, or associated with the University of British Columbia (UBC) or the WeBWorK project**. This tool is intended solely for **self-study and revision purposes**. It is NOT designed to complete assignments for you. Users bear full responsibility for its use and must adhere to their institution's academic integrity policies. Misuse of this tool may have serious academic consequences.
 
 ## License
 

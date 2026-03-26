@@ -18,7 +18,7 @@ export async function mountSidebar() {
         <div class="wwgpt-resize-handle"></div>
         <div class="wwgpt-collapsed-overlay"></div>
         <div class="wwgpt-header">
-            <span class="wwgpt-logo">🤖 WeBWorK GPT</span>
+            <span class="wwgpt-logo">🤖 WeBWorK-GPT</span>
             <div class="wwgpt-header-actions">
                 <button class="wwgpt-regen-btn" id="wwgpt-regen" title="Regenerate hints &amp; solution">↺</button>
                 <button class="wwgpt-toggle-btn" aria-label="Toggle sidebar">›</button>
@@ -223,7 +223,7 @@ async function _callWithRetry(fn, maxRetries = 2) {
             if (i < maxRetries) {
                 const delay = 1200 * (i + 1);
                 console.warn(
-                    `[WeBWorK GPT] Retry ${
+                    `[WeBWorK-GPT] Retry ${
                         i + 1
                     }/${maxRetries} after ${delay}ms:`,
                     e.message

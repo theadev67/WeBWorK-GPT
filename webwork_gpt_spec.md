@@ -1,4 +1,4 @@
-# WebWork GPT — Chrome Extension Technical Specification
+# WebWork-GPT — Chrome Extension Technical Specification
 
 **Version:** 1.0  
 **Target:** Coding Agent Implementation  
@@ -50,7 +50,7 @@ webwork-gpt/
 ```json
 {
   "manifest_version": 3,
-  "name": "WebWork GPT",
+  "name": "WebWork-GPT",
   "version": "1.0.0",
   "description": "AI-powered hints, solutions, and math chat for WeBWorK problems.",
   "permissions": [
@@ -558,7 +558,7 @@ Inject the sidebar as a `position: fixed` element directly on `document.body`. I
 <!-- Injected structure -->
 <div id="wwgpt-sidebar" class="wwgpt-sidebar wwgpt-open">
   <div class="wwgpt-header">
-    <span class="wwgpt-logo">🤖 WebWork GPT</span>
+    <span class="wwgpt-logo">🤖 WebWork-GPT</span>
     <button class="wwgpt-toggle-btn" aria-label="Toggle sidebar">›</button>
   </div>
 
@@ -987,11 +987,11 @@ function showCopyToast() {
 <head>
   <meta charset="utf-8">
   <link rel="stylesheet" href="popup.css">
-  <title>WebWork GPT</title>
+  <title>WebWork-GPT</title>
 </head>
 <body>
   <div class="popup-header">
-    <span>🤖 WebWork GPT</span>
+    <span>🤖 WebWork-GPT</span>
     <label class="toggle-switch">
       <input type="checkbox" id="enable-toggle">
       <span class="slider"></span>

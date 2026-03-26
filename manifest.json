@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "WeBWorK GPT",
+    "name": "WeBWorK-GPT",
     "version": "1.0.0",
     "description": "AI-powered hints, solutions, and math chat for WeBWorK problems.",
 
