@@ -39,7 +39,7 @@ Pick the option that fits your comfort level:
 
 1. In your terminal, run:
    ```bash
-   git clone https://github.com/your-username/WeBWorK-GPT.git ~/Documents/WeBWorK-GPT
+   git clone https://github.com/theadev67/WeBWorK-GPT.git ~/Documents/WeBWorK-GPT
    ```
 2. Open Chrome and go to `chrome://extensions/`.
 3. Enable **Developer mode** in the top-right corner.
