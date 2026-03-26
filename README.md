@@ -1,5 +1,8 @@
 # WeBWorK-GPT
 
+page: https://theadev67.github.io/WeBWorK-GPT/ <br>
+source: https://github.com/theadev67/WeBWorK-GPT
+
 A Chrome extension that provides AI-generated assistance for WeBWorK problems. It offers progressive hints, step-by-step solutions, and an interactive math chat window.
 
 > **Note**: Currently only support UBC's WeBWorK instance (Pull requests welcomed).
@@ -49,6 +52,8 @@ Upon installation, the disclaimer and options page will open automatically. You 
 1. **Read and Accept** the disclaimer.
 2. **Configure your API Key**: Enter an API key for your preferred provider (currently supports Google Gemini only).
     - _Tip_: You can get a free API key from [Google AI Studio](https://aistudio.google.com/api-keys) and select free models like `gemini-2.5-flash`.
+
+You can also open the settings page by clicking the extension icon in the toolbar then the gear icon.
 
 ## Disclaimer
 
