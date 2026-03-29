@@ -69,6 +69,10 @@ export async function mountSidebar() {
         sidebar.style.setProperty("--sidebar-width", `${data.sidebarWidth}px`);
     }
 
+    if (data.sidebarCollapsed) {
+        sidebar.classList.add("wwgpt-collapsed");
+    }
+
     _setupEvents(sidebar);
     _checkUpdateNotification(sidebar);
     _loadCachedOrGenerate();
@@ -118,22 +122,32 @@ async function _checkUpdateNotification(sidebar) {
 
 function _setupEvents(sidebar) {
     // Toggle collapse — logo or toggle button, not card headers
-    sidebar.querySelector(".wwgpt-logo").addEventListener("click", () => {
-        sidebar.classList.toggle("wwgpt-collapsed");
+    // Toggle collapse — logo or toggle button, not card headers
+    const updateCollapse = async (isCollapsed) => {
+        const data = await Settings.get();
+        data.sidebarCollapsed = isCollapsed;
+        await Settings.set(data);
+    };
+
+    sidebar.querySelector(".wwgpt-logo").addEventListener("click", async () => {
+        const isCollapsed = sidebar.classList.toggle("wwgpt-collapsed");
+        await updateCollapse(isCollapsed);
     });
     sidebar
         .querySelector(".wwgpt-toggle-btn")
-        .addEventListener("click", (e) => {
+        .addEventListener("click", async (e) => {
             e.stopPropagation();
-            sidebar.classList.toggle("wwgpt-collapsed");
+            const isCollapsed = sidebar.classList.toggle("wwgpt-collapsed");
+            await updateCollapse(isCollapsed);
         });
 
     // Expand when clicking anywhere on collapsed sidebar
     sidebar
         .querySelector(".wwgpt-collapsed-overlay")
-        .addEventListener("click", (e) => {
+        .addEventListener("click", async (e) => {
             e.stopPropagation();
             sidebar.classList.remove("wwgpt-collapsed");
+            await updateCollapse(false);
         });
 
     // Tab switching
@@ -187,9 +201,10 @@ function _setupEvents(sidebar) {
     enableClickToCopy(sidebar);
 
     // Toggle via native chrome command
-    chrome.runtime.onMessage.addListener((req) => {
+    chrome.runtime.onMessage.addListener(async (req) => {
         if (req.action === "toggle-sidebar") {
-            sidebar.classList.toggle("wwgpt-collapsed");
+            const isCollapsed = sidebar.classList.toggle("wwgpt-collapsed");
+            await updateCollapse(isCollapsed);
         }
     });
 }
