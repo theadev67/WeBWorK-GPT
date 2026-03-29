@@ -21,6 +21,15 @@
         "https://openrouter.ai/*",
         "https://theadev67.github.io/*"
     ],
+    "commands": {
+        "toggle-sidebar": {
+            "suggested_key": {
+                "default": "Alt+W",
+                "mac": "Alt+W"
+            },
+            "description": "Toggle Sidebar Collapse"
+        }
+    },
 
     "background": {
         "service_worker": "background.js",

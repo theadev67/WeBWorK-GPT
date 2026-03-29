@@ -185,6 +185,13 @@ function _setupEvents(sidebar) {
 
     _setupResizer(sidebar);
     enableClickToCopy(sidebar);
+
+    // Toggle via native chrome command
+    chrome.runtime.onMessage.addListener((req) => {
+        if (req.action === "toggle-sidebar") {
+            sidebar.classList.toggle("wwgpt-collapsed");
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
