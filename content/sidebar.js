@@ -266,7 +266,46 @@ async function _loadCachedOrGenerate() {
         _displaySolution(cached.solution, false);
         _displayChatHistory(cached.chatHistory);
     } else {
-        generateAll();
+        const settings = await Settings.get();
+        if (settings.autoGenerate) {
+            generateAll();
+        } else {
+            _showGenerateButton();
+        }
+    }
+}
+
+function _showGenerateButton() {
+    const tabHints = document.getElementById("wwgpt-tab-hints");
+    if (!tabHints) return;
+
+    // Don't add if already exists or loading
+    if (
+        document.getElementById("wwgpt-manual-generate") ||
+        !document.getElementById("wwgpt-loading")?.classList.contains("hidden")
+    ) {
+        return;
+    }
+
+    const btn = document.createElement("button");
+    btn.id = "wwgpt-manual-generate";
+    btn.className = "wwgpt-generate-btn";
+    btn.textContent = "Generate Hints & Solutions";
+
+    btn.addEventListener("click", async () => {
+        btn.classList.add("fade-out");
+        setTimeout(() => {
+            btn.remove();
+            generateAll(true);
+        }, 300);
+    });
+
+    // Insert before loading indicator
+    const loadingEl = document.getElementById("wwgpt-loading");
+    if (loadingEl) {
+        loadingEl.insertAdjacentElement("beforebegin", btn);
+    } else {
+        tabHints.prepend(btn);
     }
 }
 
@@ -310,6 +349,9 @@ async function generateAll(force = false) {
 
     const problem = extractProblem();
     if (!problem) return;
+
+    // Ensure the manual button is gone if we're generating (e.g. from regen button)
+    document.getElementById("wwgpt-manual-generate")?.remove();
 
     const loadingEl = document.getElementById("wwgpt-loading");
     const loadingTextEl = document.getElementById("wwgpt-loading-text");

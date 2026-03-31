@@ -9,6 +9,7 @@ export const Settings = {
                     "disclaimerAccepted",
                     "sidebarWidth",
                     "sidebarCollapsed",
+                    "autoGenerate",
                 ],
                 r
             )

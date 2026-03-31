@@ -542,3 +542,38 @@
 .wwgpt-update-actions button:hover {
     color: #374151;
 }
+
+/* ===== Manual Generate Button ===== */
+.wwgpt-generate-btn {
+    display: block;
+    width: calc(100% - 28px);
+    margin: 10px 14px;
+    padding: 12px;
+    background: #1e40af;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.3s, transform 0.3s;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(30, 64, 175, 0.2);
+    flex-shrink: 0;
+}
+
+.wwgpt-generate-btn:hover {
+    background: #1d3899;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(30, 64, 175, 0.25);
+}
+
+.wwgpt-generate-btn:active {
+    transform: translateY(0);
+}
+
+.wwgpt-generate-btn.fade-out {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+}
