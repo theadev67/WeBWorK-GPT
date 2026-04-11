@@ -27,6 +27,7 @@ export async function mountSidebar() {
         <div class="wwgpt-tabs">
             <button class="wwgpt-tab active" data-tab="hints">Hints &amp; Solution</button>
             <button class="wwgpt-tab" data-tab="chat">💬 Math Chat</button>
+            <button class="wwgpt-tab" data-tab="notes">Notes</button>
         </div>
         <div class="wwgpt-tab-content" id="wwgpt-tab-hints">
             <div class="wwgpt-loading hidden" id="wwgpt-loading">
@@ -55,6 +56,12 @@ export async function mountSidebar() {
             <div class="wwgpt-chat-input-row">
                 <textarea id="wwgpt-chat-input" placeholder="Ask anything about this problem..." rows="2"></textarea>
                 <button id="wwgpt-chat-send">Send</button>
+            </div>
+        </div>
+        <div class="wwgpt-tab-content hidden" id="wwgpt-tab-notes">
+            <div class="wwgpt-notes-container">
+                <textarea class="wwgpt-notes-textarea" id="wwgpt-notes-content" placeholder="Take your notes here for this question..."></textarea>
+                <div class="wwgpt-notes-status" id="wwgpt-notes-status">All notes saved locally</div>
             </div>
         </div>
         <div id="can-make-mistakes" style="font-size:8px; color:gray; text-align:center; padding:4px">
@@ -199,6 +206,7 @@ function _setupEvents(sidebar) {
 
     _setupResizer(sidebar);
     enableClickToCopy(sidebar);
+    _setupNotesEvents(sidebar);
 
     // Toggle via native chrome command
     chrome.runtime.onMessage.addListener(async (req) => {
@@ -265,6 +273,7 @@ async function _loadCachedOrGenerate() {
         _displayHints(cached.hints, false);
         _displaySolution(cached.solution, false);
         _displayChatHistory(cached.chatHistory);
+        _displayNotes(cached.notes);
     } else {
         const settings = await Settings.get();
         if (settings.autoGenerate) {
@@ -469,6 +478,25 @@ function _appendMessage(role, content) {
     typeset(msgDiv);
 }
 
+function _displayNotes(notes) {
+    const textarea = document.getElementById("wwgpt-notes-content");
+    if (textarea) {
+        textarea.value = notes || "";
+        _updateNotesDot(textarea.value);
+    }
+}
+
+function _updateNotesDot(text) {
+    const tab = document.querySelector('.wwgpt-tab[data-tab="notes"]');
+    if (tab) {
+        if (text && text.trim().length > 0) {
+            tab.classList.add("has-notes");
+        } else {
+            tab.classList.remove("has-notes");
+        }
+    }
+}
+
 function _showError(msg) {
     const loadingEl = document.getElementById("wwgpt-loading");
     const errDiv = document.createElement("div");
@@ -566,6 +594,34 @@ async function _sendChatMessage() {
         document.getElementById("wwgpt-typing")?.remove();
         _appendMessage("assistant", `⚠️ Error: ${err.message}`);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
+function _setupNotesEvents(sidebar) {
+    const textarea = sidebar.querySelector("#wwgpt-notes-content");
+    const status = sidebar.querySelector("#wwgpt-notes-status");
+    let saveTimeout;
+
+    textarea.addEventListener("input", () => {
+        status.textContent = "Saving...";
+        _updateNotesDot(textarea.value);
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            const { path, seed } = _problemKey();
+            const cached = (await Cache.get(path, seed)) ?? {
+                hints: null,
+                solution: null,
+                chatHistory: [],
+            };
+            cached.notes = textarea.value;
+            await Cache.set(path, seed, cached);
+            status.textContent = "All notes saved locally";
+            _updateNotesDot(textarea.value);
+        }, 800);
+    });
 }
 
 // ---------------------------------------------------------------------------

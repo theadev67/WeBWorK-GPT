@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Export Backup - WeBWorK-GPT</title>
+        <meta charset="UTF-8" />
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Roboto, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f8fafc;
+                color: #1e293b;
+            }
+            .container {
+                background: white;
+                padding: 2.5rem;
+                border-radius: 16px;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+                max-width: 480px;
+                width: 90%;
+                text-align: center;
+            }
+            .logo {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                display: block;
+            }
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: #0f172a;
+            }
+            p {
+                color: #64748b;
+                font-size: 0.95rem;
+                margin-bottom: 2rem;
+            }
+            .option-card {
+                background: #f1f5f9;
+                padding: 16px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 1.5rem;
+                text-align: left;
+            }
+            .option-info {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .option-title {
+                font-weight: 600;
+                font-size: 0.95rem;
+            }
+            .option-desc {
+                font-size: 0.85rem;
+                color: #64748b;
+            }
+            .warning-box {
+                background: #fff7ed;
+                border: 1px solid #ffedd5;
+                color: #9a3412;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                margin-bottom: 1.5rem;
+                display: flex;
+                gap: 8px;
+                text-align: left;
+                align-items: flex-start;
+            }
+            .warning-box b {
+                color: #7c2d12;
+            }
+            #export-confirm-btn {
+                background: #1e40af;
+                color: white;
+                border: none;
+                width: 100%;
+                padding: 14px;
+                border-radius: 10px;
+                font-weight: 600;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            #export-confirm-btn:hover {
+                background: #1d4ed8;
+            }
+            .hidden {
+                display: none;
+            }
+
+            /* Switch */
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 44px;
+                height: 24px;
+                flex-shrink: 0;
+            }
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #cbd5e1;
+                transition: 0.4s;
+                border-radius: 24px;
+            }
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 18px;
+                width: 18px;
+                left: 3px;
+                bottom: 3px;
+                background-color: white;
+                transition: 0.4s;
+                border-radius: 50%;
+            }
+            input:checked + .slider {
+                background-color: #1e40af;
+            }
+            input:checked + .slider:before {
+                transform: translateX(20px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <span class="logo">📦</span>
+            <h1>Backup Data</h1>
+            <p>
+                Export your WeBWorK history, solution cache, and personal notes
+                to a secure JSON file.
+            </p>
+
+            <div class="option-card">
+                <div class="option-info">
+                    <span class="option-title">Include API Keys</span>
+                    <span class="option-desc"
+                        >Saves your current API key in the backup</span
+                    >
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="include-keys" />
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="warning" class="warning-box hidden">
+                <span>⚠️</span>
+                <span>
+                    <b>IMPORTANT:</b> This file will contain your private API
+                    keys. Do not share this file with anyone!
+                </span>
+            </div>
+
+            <button id="export-confirm-btn">🚀 Download Backup</button>
+            <div id="status" style="margin-top: 1rem; font-size: 0.9rem"></div>
+        </div>
+        <script type="module" src="export.js"></script>
+    </body>
+</html>

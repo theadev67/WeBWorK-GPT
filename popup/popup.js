@@ -20,4 +20,26 @@ openSettings.addEventListener("click", () => {
     }
 });
 
+// --- Backup & Restore ---
+
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const statusEl = document.getElementById("popup-status");
+
+const showStatus = (msg, type) => {
+    statusEl.textContent = msg;
+    statusEl.className = `status-message ${type}`;
+    statusEl.classList.remove("hidden");
+};
+
+exportBtn.addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("pages/export.html") });
+});
+
+importBtn.addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("pages/import.html") });
+});
+
+init();
+
 init();

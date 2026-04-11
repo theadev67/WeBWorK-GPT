@@ -141,7 +141,7 @@
 
 .wwgpt-tab {
     flex: 1;
-    padding: 9px 6px;
+    padding: 9px 4px;
     border: none;
     background: none;
     font-size: 13px;
@@ -150,6 +150,14 @@
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wwgpt-tab[data-tab="notes"] {
+    flex: 0.5;
+    min-width: 50px;
 }
 
 .wwgpt-tab.active {
@@ -159,6 +167,17 @@
 
 .wwgpt-tab:hover:not(.active) {
     color: #334155;
+}
+
+.wwgpt-tab[data-tab="notes"].has-notes::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #1e40af;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
 }
 
 /* ===== Tab Content ===== */
@@ -306,6 +325,48 @@
     border-radius: 6px;
     padding: 10px 14px;
     font-size: 13px;
+}
+
+/* ===== Notes Tab ===== */
+#wwgpt-tab-notes {
+    padding: 0;
+    height: 100%;
+}
+
+.wwgpt-notes-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.wwgpt-notes-textarea {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    background: #fff;
+    color: #334155;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.wwgpt-notes-textarea:focus {
+    outline: none;
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.wwgpt-notes-status {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 6px;
+    text-align: right;
+    font-style: italic;
 }
 
 /* ===== Chat Tab ===== */

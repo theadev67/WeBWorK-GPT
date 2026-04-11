@@ -40,6 +40,125 @@
     border-color: #cbd5e1;
 }
 
+.btn-secondary:active {
+    background: #e2e8f0;
+}
+
+.backup-section {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-outline {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.btn-outline:active {
+    background: #f1f5f9;
+}
+
+.status-message {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.status-message.hidden {
+    display: none;
+}
+
+.status-message.success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.status-message.error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.status-message.info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.confirm-area {
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.confirm-area p {
+    font-size: 13px;
+    font-weight: 600;
+    color: #991b1b;
+    margin: 0 0 10px 0;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-danger {
+    flex: 1;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Switch */
 .switch {
     position: relative;
