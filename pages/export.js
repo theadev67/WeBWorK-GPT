@@ -46,7 +46,7 @@ exportBtn.addEventListener("click", async () => {
         });
         const url = URL.createObjectURL(blob);
         const dateStr = new Date().toISOString().split("T")[0];
-        const typeStr = includeKeys.checked ? "full-backup" : "history-only";
+        const typeStr = includeKeys.checked ? "with-api-keys" : "no-api-keys";
 
         const a = document.createElement("a");
         a.href = url;
