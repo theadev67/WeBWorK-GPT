@@ -10,6 +10,7 @@ export const Settings = {
                     "sidebarWidth",
                     "sidebarCollapsed",
                     "autoGenerate",
+                    "showRobotIcons",
                 ],
                 r
             )
@@ -22,12 +23,12 @@ export const Settings = {
 
 // chrome.storage.local — per-question cache
 export const Cache = {
+    _sanitizePath(problemPath) {
+        return (problemPath || "unknown").replace(/[^a-zA-Z0-9]/g, "_");
+    },
     _key(problemPath, randomSeed) {
         // sanitize to valid storage key
-        const safePath = (problemPath || "unknown").replace(
-            /[^a-zA-Z0-9]/g,
-            "_"
-        );
+        const safePath = this._sanitizePath(problemPath);
         return `ww_${safePath}_${randomSeed || "0"}`;
     },
     async get(problemPath, randomSeed) {
@@ -45,6 +46,9 @@ export const Cache = {
     async clear(problemPath, randomSeed) {
         const key = this._key(problemPath, randomSeed);
         return new Promise((r) => chrome.storage.local.remove(key, r));
+    },
+    async getAll() {
+        return new Promise((r) => chrome.storage.local.get(null, r));
     },
 };
 

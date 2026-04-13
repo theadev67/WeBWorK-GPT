@@ -1,15 +1,21 @@
 import { mountSidebar } from "./sidebar.js";
+import { decorateProblemTable } from "./table-decorator.js";
 import { Settings } from "../modules/storage.js";
 
 async function init() {
-    // Only activate on WeBWorK problem pages
-    if (!document.querySelector("#output_problem_body")) return;
-
     const data = await Settings.get();
     if (data.enabled === false) return; // respect user toggle
     if (!data.disclaimerAccepted) return; // user must accept disclaimer first
 
-    mountSidebar();
+    // Check if we are on a problem page
+    if (document.querySelector("#output_problem_body")) {
+        mountSidebar();
+    } 
+    
+    // Check if we are on a problem table page (homework set list)
+    if (data.showRobotIcons !== false && document.querySelector(".table-responsive table")) {
+        decorateProblemTable();
+    }
 }
 
 // In some cases, WeBWorK might load its problem body dynamically or late

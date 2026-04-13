@@ -10,6 +10,7 @@ const apiKeyInput = document.getElementById("api-key-input");
 const acceptCheckbox = document.getElementById("accept-checkbox");
 const enabledToggle = document.getElementById("enabled-toggle");
 const autoGenerateToggle = document.getElementById("auto-generate-toggle");
+const showRobotIconsToggle = document.getElementById("show-robot-icons-toggle");
 const saveButton = document.getElementById("save-button");
 const statusMsg = document.getElementById("status-msg");
 
@@ -91,6 +92,7 @@ async function loadSettings() {
     acceptCheckbox.checked = !!data.disclaimerAccepted;
     enabledToggle.checked = data.enabled !== false; // default true
     autoGenerateToggle.checked = !!data.autoGenerate; // default false
+    showRobotIconsToggle.checked = data.showRobotIcons !== false; // default true
 }
 
 // Save settings
@@ -126,6 +128,7 @@ async function saveSettings() {
         disclaimerAccepted: true,
         enabled: enabledToggle.checked,
         autoGenerate: autoGenerateToggle.checked,
+        showRobotIcons: showRobotIconsToggle.checked,
     });
 
     statusMsg.textContent = "✅ Settings saved successfully!";
