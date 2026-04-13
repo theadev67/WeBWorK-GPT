@@ -47,7 +47,7 @@ function updateModelList(provider, currentPrimary = null, currentChat = null) {
     // Default logic for Gemini
     if (provider === "gemini") {
         if (!currentPrimary) modelSelect.value = "gemini-2.5-flash";
-        if (!currentChat) chatModelSelect.value = "gemma-3-27b-it";
+        if (!currentChat) chatModelSelect.value = "gemma-4-31b-it";
     }
 
     if (currentPrimary) {

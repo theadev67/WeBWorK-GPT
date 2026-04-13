@@ -23,9 +23,19 @@ export const GEMINI_MODELS = [
         name: "Gemini 2.5 Flash-Lite",
     },
     {
+        id: "gemma-4-31b-it",
+        name: "Gemma 4 31B",
+        chatComment: "Highest Rate Limit ✨",
+        supportsJson: false,
+    },
+    {
+        id: "gemma-4-26b-it",
+        name: "Gemma 4 26B",
+        supportsJson: false,
+    },
+    {
         id: "gemma-3-27b-it",
         name: "Gemma 3 27B",
-        chatComment: "Highest Rate Limit ✨",
         supportsJson: false,
     },
     { id: "gemma-3-12b-it", name: "Gemma 3 12B", supportsJson: false },
@@ -80,7 +90,7 @@ export async function complete(
     messages,
     config,
     onChunk = null,
-    mode = "chat"
+    mode = "chat",
 ) {
     if (
         typeof window !== "undefined" &&
@@ -133,6 +143,7 @@ async function _callGemini(messages, config, onChunk, mode) {
     const { maxOutputTokens, thinkingBudget } =
         MODE_CONFIG[mode] ?? MODE_CONFIG.chat;
     const isGemma = config.model.startsWith("gemma-");
+    const isGemma4 = config.model.startsWith("gemma-4");
     const isHint = mode === "hint";
 
     // JSON streaming is not useful — accumulating and then parsing loses the point.
@@ -225,20 +236,32 @@ async function _callGemini(messages, config, onChunk, mode) {
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(
-            `Gemini API error: ${res.status} ${err.error?.message || ""}`
+            `Gemini API error: ${res.status} ${err.error?.message || ""}`,
         );
     }
 
     if (streaming) {
-        return _consumeSSE(
-            res,
-            onChunk,
-            (data) => data.candidates?.[0]?.content?.parts?.[0]?.text ?? ""
-        );
+        return _consumeSSE(res, onChunk, (data) => {
+            const parts = data.candidates?.[0]?.content?.parts ?? [];
+            return parts
+                .filter((p) => !p.thought)
+                .map((p) => p.text)
+                .join("");
+        });
     }
 
     const json = await res.json();
-    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const parts = json.candidates?.[0]?.content?.parts ?? [];
+    const fullText = parts
+        .filter((p) => !p.thought)
+        .map((p) => p.text)
+        .join("");
+    return _stripThoughtTags(fullText);
+}
+
+function _stripThoughtTags(text) {
+    if (!text) return "";
+    return text.replace(/<(thought|thinking|reasoning)>[\s\S]*?<\/\1>/gi, "").trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +289,8 @@ async function _consumeSSE(res, onChunk, extractText) {
                 const data = JSON.parse(raw);
                 const chunk = extractText(data);
                 if (chunk) {
+                    // Note: tag-based thought stripping is harder during streaming
+                    // as we might only have half a tag. We'll handle it during render.
                     full += chunk;
                     onChunk(chunk);
                 }

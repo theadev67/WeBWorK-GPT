@@ -83,6 +83,11 @@ export function enableClickToCopy(element) {
 export function renderMarkdown(text) {
     if (!text) return "";
 
+    // ── 0. Strip thoughts (e.g. Gemma 4 / DeepSeek-R1) ───────────────────────
+    // Some models include their internal reasoning in these tags.
+    // We strip them to keep the UI clean while preserving the model's reasoning capability.
+    text = text.replace(/<(thought|thinking|reasoning)>[\s\S]*?<\/\1>/gi, "").trim();
+
     // ── 1. Stash LaTeX ──────────────────────────────────────────────────────
     const stash = [];
     const _esc = (t) =>
