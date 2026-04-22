@@ -11,6 +11,7 @@ export const Settings = {
                     "sidebarCollapsed",
                     "autoGenerate",
                     "showRobotIcons",
+                    "redoMode",
                 ],
                 r
             )

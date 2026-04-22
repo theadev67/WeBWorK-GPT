@@ -96,3 +96,23 @@ chrome.commands.onCommand.addListener((command) => {
         });
     }
 });
+
+async function updateBadge() {
+    const data = await chrome.storage.sync.get("redoMode");
+    if (data.redoMode) {
+        chrome.action.setBadgeText({ text: "R" });
+        chrome.action.setBadgeBackgroundColor({ color: "#22c55e" }); // Green
+    } else {
+        chrome.action.setBadgeText({ text: "" });
+    }
+}
+
+// Update badge when settings change
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "sync" && changes.redoMode) {
+        updateBadge();
+    }
+});
+
+// Initialize badge
+updateBadge();
