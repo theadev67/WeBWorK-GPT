@@ -418,13 +418,14 @@ async function generateAll(force = false) {
         _displaySolution(solution, false);
         _showSuccessNotification();
 
-        // Persist — preserve existing chat history across regeneration
+        // Persist — preserve existing chat history and notes across regeneration
         const { path, seed } = _problemKey();
-        const prev = (await Cache.get(path, seed)) ?? { chatHistory: [] };
+        const prev = (await Cache.get(path, seed)) ?? { chatHistory: [], notes: "" };
         await Cache.set(path, seed, {
             hints,
             solution,
             chatHistory: prev.chatHistory,
+            notes: prev.notes,
         });
     } catch (err) {
         console.error("Generation failed:", err);

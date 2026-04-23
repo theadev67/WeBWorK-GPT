@@ -11,6 +11,7 @@ export const Settings = {
                     "sidebarCollapsed",
                     "autoGenerate",
                     "showRobotIcons",
+                    "showMemoIcons",
                     "redoMode",
                 ],
                 r
@@ -57,5 +58,6 @@ export const Cache = {
 // {
 //   hints: { hint1: string, hint2: string, hint3: string } | null,
 //   solution: string | null,
+//   notes: string | null,
 //   chatHistory: Array<{ role: 'user'|'assistant', content: string }>
 // }

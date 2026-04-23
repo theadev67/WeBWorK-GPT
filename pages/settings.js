@@ -11,6 +11,7 @@ const acceptCheckbox = document.getElementById("accept-checkbox");
 const enabledToggle = document.getElementById("enabled-toggle");
 const autoGenerateToggle = document.getElementById("auto-generate-toggle");
 const showRobotIconsToggle = document.getElementById("show-robot-icons-toggle");
+const showMemoIconsToggle = document.getElementById("show-memo-icons-toggle");
 const saveButton = document.getElementById("save-button");
 const statusMsg = document.getElementById("status-msg");
 
@@ -93,6 +94,7 @@ async function loadSettings() {
     enabledToggle.checked = data.enabled !== false; // default true
     autoGenerateToggle.checked = !!data.autoGenerate; // default false
     showRobotIconsToggle.checked = data.showRobotIcons !== false; // default true
+    showMemoIconsToggle.checked = data.showMemoIcons !== false; // default true
 }
 
 // Save settings
@@ -129,6 +131,7 @@ async function saveSettings() {
         enabled: enabledToggle.checked,
         autoGenerate: autoGenerateToggle.checked,
         showRobotIcons: showRobotIconsToggle.checked,
+        showMemoIcons: showMemoIconsToggle.checked,
     });
 
     statusMsg.textContent = "✅ Settings saved successfully!";

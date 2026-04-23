@@ -25,7 +25,7 @@ async function init() {
     } 
     
     // Check if we are on a problem table page (homework set list)
-    if (data.showRobotIcons !== false && document.querySelector(".table-responsive table")) {
+    if ((data.showRobotIcons !== false || data.showMemoIcons !== false) && document.querySelector(".table-responsive table")) {
         decorateProblemTable();
     }
 }

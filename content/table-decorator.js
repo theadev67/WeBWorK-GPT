@@ -1,4 +1,4 @@
-import { Cache } from "../modules/storage.js";
+import { Cache, Settings } from "../modules/storage.js";
 
 /**
  * Checks the problem table on a set page and adds a robot emoji next to 
@@ -8,12 +8,15 @@ export async function decorateProblemTable() {
     const table = document.querySelector(".table-responsive table");
     if (!table) return;
 
+    // Get settings to check if icons should be shown
+    const settings = await Settings.get();
+    if (settings.showRobotIcons === false && settings.showMemoIcons === false) return;
+
     // Get all cache entries at once to avoid multiple async calls in the loop
     const allData = await Cache.getAll();
     const storageKeys = Object.keys(allData);
 
     // Select links that point to problems
-    // Typical selector based on user input: .table-responsive table > tbody > tr > td > a
     const problemLinks = table.querySelectorAll("tbody tr td:first-child a");
 
     for (const link of problemLinks) {
@@ -26,23 +29,41 @@ export async function decorateProblemTable() {
             const prefix = `ww_${safePath}_`;
             
             // Check if any key in storage belongs to this problem and has meaningful content
-            const hasGeneratedContent = storageKeys.some(key => {
+            let hasGeneratedContent = false;
+            let hasNotes = false;
+
+            for (const key of storageKeys) {
                 if (key.startsWith(prefix)) {
                     const entry = allData[key];
-                    // An entry is considered "generated" if it has hints or a solution
-                    return entry && (
-                        (entry.hints && Object.keys(entry.hints).length > 0) || 
-                        entry.solution
-                    );
+                    if (entry) {
+                        if (!hasGeneratedContent && (
+                            (entry.hints && Object.keys(entry.hints).length > 0) || 
+                            entry.solution
+                        )) {
+                            hasGeneratedContent = true;
+                        }
+                        if (!hasNotes && entry.notes && entry.notes.trim().length > 0) {
+                            hasNotes = true;
+                        }
+                    }
                 }
-                return false;
-            });
+                if (hasGeneratedContent && hasNotes) break;
+            }
 
-            if (hasGeneratedContent) {
-                // Only add if not already present
+            let emojisToAdd = "";
+            if (hasGeneratedContent && settings.showRobotIcons !== false) {
                 if (!link.textContent.includes("🤖")) {
-                    link.textContent = link.textContent.trim() + " 🤖";
+                    emojisToAdd += " 🤖";
                 }
+            }
+            if (hasNotes && settings.showMemoIcons !== false) {
+                if (!link.textContent.includes("📝")) {
+                    emojisToAdd += " 📝";
+                }
+            }
+
+            if (emojisToAdd) {
+                link.textContent = link.textContent.trim() + emojisToAdd;
             }
         } catch (e) {
             console.error("[WeBWorK-GPT] Error decorating link:", e);
