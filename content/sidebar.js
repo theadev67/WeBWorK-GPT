@@ -1,11 +1,7 @@
-import { Settings, Cache } from "../modules/storage.js";
+import { Settings, Cache, Status } from "../modules/storage.js";
 import {
     extractProblem,
-    buildHintsPrompt,
-    buildSolutionPrompt,
-    buildChatSystemPrompt,
 } from "../modules/prompts.js";
-import { complete } from "../modules/llm-provider.js";
 import { typeset, enableClickToCopy, renderMarkdown } from "./math-utils.js";
 
 export async function mountSidebar() {
@@ -213,8 +209,64 @@ function _setupEvents(sidebar) {
         if (req.action === "toggle-sidebar") {
             const isCollapsed = sidebar.classList.toggle("wwgpt-collapsed");
             await updateCollapse(isCollapsed);
+        } else if (req.action === "generation-complete") {
+            const { path, seed } = _problemKey();
+            if (req.path === path && req.seed === seed) {
+                _displayHints(req.hints, false);
+                _displaySolution(req.solution, false);
+                _showSuccessNotification();
+                document.getElementById("wwgpt-loading")?.classList.add("hidden");
+            }
+        } else if (req.action === "chat-complete") {
+            const { path, seed } = _problemKey();
+            if (req.path === path && req.seed === seed) {
+                document.getElementById("wwgpt-typing")?.remove();
+                _appendMessage("assistant", req.reply);
+            }
         }
     });
+
+    // Listen for status changes
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local") {
+            const { path, seed } = _problemKey();
+            const statusKey = `status_${Cache._sanitizePath(path)}_${seed || "0"}`;
+            if (changes[statusKey]) {
+                const status = changes[statusKey].newValue;
+                if (status) {
+                    _handleStatusUpdate(status);
+                } else {
+                    // Status cleared, hide loading if it was loading
+                    document.getElementById("wwgpt-loading")?.classList.add("hidden");
+                }
+            }
+        }
+    });
+}
+
+function _handleStatusUpdate(status) {
+    const loadingEl = document.getElementById("wwgpt-loading");
+    const loadingTextEl = document.getElementById("wwgpt-loading-text");
+    const typing = document.getElementById("wwgpt-typing");
+
+    if (status.state === "loading") {
+        loadingEl.classList.remove("hidden");
+        if (loadingTextEl) loadingTextEl.textContent = status.text || "Working...";
+    } else if (status.state === "chat-loading") {
+        if (!typing) {
+            const log = document.getElementById("wwgpt-chat-log");
+            const typingDiv = document.createElement("div");
+            typingDiv.id = "wwgpt-typing";
+            typingDiv.className = "wwgpt-msg assistant wwgpt-typing";
+            typingDiv.innerHTML = "<span></span><span></span><span></span>";
+            log.appendChild(typingDiv);
+            log.scrollTop = log.scrollHeight;
+        }
+    } else if (status.state === "error") {
+        _showError(status.message);
+        loadingEl.classList.add("hidden");
+        typing?.remove();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -269,12 +321,18 @@ function _setupResizer(sidebar) {
 async function _loadCachedOrGenerate() {
     const { path, seed } = _problemKey();
     const cached = await Cache.get(path, seed);
+    const status = await Status.get(path, seed);
+
     if (cached) {
         _displayHints(cached.hints, false);
         _displaySolution(cached.solution, false);
         _displayChatHistory(cached.chatHistory);
         _displayNotes(cached.notes);
-    } else {
+    }
+
+    if (status) {
+        _handleStatusUpdate(status);
+    } else if (!cached) {
         const settings = await Settings.get();
         if (settings.autoGenerate) {
             generateAll();
@@ -319,32 +377,6 @@ function _showGenerateButton() {
 }
 
 // ---------------------------------------------------------------------------
-// Retry helper — handles transient network / 503 errors
-// ---------------------------------------------------------------------------
-
-async function _callWithRetry(fn, maxRetries = 2) {
-    let lastErr;
-    for (let i = 0; i <= maxRetries; i++) {
-        try {
-            return await fn();
-        } catch (e) {
-            lastErr = e;
-            if (i < maxRetries) {
-                const delay = 1200 * (i + 1);
-                console.warn(
-                    `[WeBWorK-GPT] Retry ${
-                        i + 1
-                    }/${maxRetries} after ${delay}ms:`,
-                    e.message
-                );
-                await new Promise((r) => setTimeout(r, delay));
-            }
-        }
-    }
-    throw lastErr;
-}
-
-// ---------------------------------------------------------------------------
 // Main generation
 // ---------------------------------------------------------------------------
 
@@ -359,20 +391,12 @@ async function generateAll(force = false) {
     const problem = extractProblem();
     if (!problem) return;
 
-    // Ensure the manual button is gone if we're generating (e.g. from regen button)
+    // Ensure the manual button is gone if we're generating
     document.getElementById("wwgpt-manual-generate")?.remove();
 
-    const loadingEl = document.getElementById("wwgpt-loading");
-    const loadingTextEl = document.getElementById("wwgpt-loading-text");
-    loadingEl.classList.remove("hidden");
+    const { path, seed } = _problemKey();
 
-    const stuckTimeout = setTimeout(() => {
-        if (loadingTextEl)
-            loadingTextEl.textContent =
-                "Taking longer than usual... try refreshing if stuck.";
-    }, 40000);
-
-    // Clear previous output
+    // Clear previous output in UI
     for (let i = 1; i <= 3; i++) {
         const body = document.querySelector(`#wwgpt-hint${i} .wwgpt-card-body`);
         if (body) body.innerHTML = "";
@@ -382,58 +406,12 @@ async function generateAll(force = false) {
     if (solBody) solBody.innerHTML = "";
     document.getElementById("wwgpt-solution")?.classList.remove("open");
 
-    try {
-        // Hints — JSON mode, responseSchema enforced at the API level.
-        // JSON.parse is safe here: the model physically cannot emit malformed JSON in this mode.
-        loadingTextEl.textContent = "Generating hints...";
-        const hintsPrompt = buildHintsPrompt(problem.text);
-        const hints = await _callWithRetry(async () => {
-            const raw = await complete(
-                [
-                    { role: "system", content: hintsPrompt.system },
-                    { role: "user", content: hintsPrompt.user },
-                ],
-                settings.llmConfig,
-                null, // no streaming — JSON streaming is not useful
-                "hint"
-            );
-            return JSON.parse(raw);
-        });
-        _displayHints(hints, false);
-
-        // Solution — free-form markdown, no JSON schema
-        loadingTextEl.textContent = "Writing solution...";
-        const solutionPrompt = buildSolutionPrompt(problem.text);
-        const solution = await _callWithRetry(() =>
-            complete(
-                [
-                    { role: "system", content: solutionPrompt.system },
-                    { role: "user", content: solutionPrompt.user },
-                ],
-                settings.llmConfig,
-                null,
-                "solution"
-            )
-        );
-        _displaySolution(solution, false);
-        _showSuccessNotification();
-
-        // Persist — preserve existing chat history and notes across regeneration
-        const { path, seed } = _problemKey();
-        const prev = (await Cache.get(path, seed)) ?? { chatHistory: [], notes: "" };
-        await Cache.set(path, seed, {
-            hints,
-            solution,
-            chatHistory: prev.chatHistory,
-            notes: prev.notes,
-        });
-    } catch (err) {
-        console.error("Generation failed:", err);
-        _showError(err.message);
-    } finally {
-        clearTimeout(stuckTimeout);
-        loadingEl.classList.add("hidden");
-    }
+    chrome.runtime.sendMessage({
+        action: "generate-all",
+        path,
+        seed,
+        problemText: problem.text,
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -550,51 +528,19 @@ async function _sendChatMessage() {
     const text = input.value.trim();
     if (!text) return;
 
-    const settings = await Settings.get();
     const problem = extractProblem();
     const { path, seed } = _problemKey();
-    const cached = (await Cache.get(path, seed)) ?? { chatHistory: [] };
 
     _appendMessage("user", text);
     input.value = "";
 
-    // Typing indicator
-    const log = document.getElementById("wwgpt-chat-log");
-    const typing = document.createElement("div");
-    typing.id = "wwgpt-typing";
-    typing.className = "wwgpt-msg assistant wwgpt-typing";
-    typing.innerHTML = "<span></span><span></span><span></span>";
-    log.appendChild(typing);
-    log.scrollTop = log.scrollHeight;
-
-    const messages = [
-        { role: "system", content: buildChatSystemPrompt(problem?.text ?? "") },
-        ...cached.chatHistory,
-        { role: "user", content: text },
-    ];
-
-    try {
-        const reply = await _callWithRetry(() =>
-            complete(
-                messages,
-                {
-                    ...settings.llmConfig,
-                    model: settings.llmConfig.chatModel || "gemma-3-27b-it",
-                },
-                null,
-                "chat"
-            )
-        );
-        document.getElementById("wwgpt-typing")?.remove();
-        _appendMessage("assistant", reply);
-
-        cached.chatHistory.push({ role: "user", content: text });
-        cached.chatHistory.push({ role: "assistant", content: reply });
-        await Cache.set(path, seed, cached);
-    } catch (err) {
-        document.getElementById("wwgpt-typing")?.remove();
-        _appendMessage("assistant", `⚠️ Error: ${err.message}`);
-    }
+    chrome.runtime.sendMessage({
+        action: "chat",
+        path,
+        seed,
+        problemText: problem?.text ?? "",
+        text,
+    });
 }
 
 // ---------------------------------------------------------------------------

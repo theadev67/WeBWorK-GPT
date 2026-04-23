@@ -54,6 +54,26 @@ export const Cache = {
     },
 };
 
+// chrome.storage.local — track background task status
+export const Status = {
+    async get(problemPath, randomSeed) {
+        const key = `status_${Cache._sanitizePath(problemPath)}_${randomSeed || "0"}`;
+        return new Promise((r) =>
+            chrome.storage.local.get(key, (data) => r(data[key] ?? null))
+        );
+    },
+    async set(problemPath, randomSeed, status) {
+        const key = `status_${Cache._sanitizePath(problemPath)}_${randomSeed || "0"}`;
+        return new Promise((r) =>
+            chrome.storage.local.set({ [key]: status }, r)
+        );
+    },
+    async clear(problemPath, randomSeed) {
+        const key = `status_${Cache._sanitizePath(problemPath)}_${randomSeed || "0"}`;
+        return new Promise((r) => chrome.storage.local.remove(key, r));
+    },
+};
+
 // Cached object shape:
 // {
 //   hints: { hint1: string, hint2: string, hint3: string } | null,
