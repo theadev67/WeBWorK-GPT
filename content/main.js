@@ -1,6 +1,8 @@
 import { mountSidebar } from "./sidebar.js";
 import { decorateProblemTable } from "./table-decorator.js";
 import { Settings } from "../modules/storage.js";
+import { initRedoMode } from "./redo-mode.js";
+
 
 async function init() {
     const data = await Settings.get();
@@ -11,16 +13,9 @@ async function init() {
     const problemBody = document.querySelector("#output_problem_body");
     if (problemBody) {
         if (data.redoMode) {
-            problemBody.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
-                input.value = "";
-            });
-            problemBody.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(input => {
-                input.checked = false;
-            });
-            problemBody.querySelectorAll('select').forEach(select => {
-                select.selectedIndex = 0;
-            });
+            initRedoMode(problemBody);
         }
+
         mountSidebar();
     } 
     
