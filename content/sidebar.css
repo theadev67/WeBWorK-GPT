@@ -668,6 +668,10 @@
     font-size: 14px;
 }
 
+.wwgpt-redo-text.active {
+    text-decoration: underline;
+}
+
 .wwgpt-redo-label-sub {
     font-size: 12px;
     color: #64748b;
